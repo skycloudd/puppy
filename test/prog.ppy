@@ -1,2 +1,2 @@
-print some_variable;
-print (2 + 3) * 4;
+print some.variable++;
+print (2 + 3) * 4 % 5;

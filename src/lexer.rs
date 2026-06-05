@@ -1,7 +1,7 @@
 use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
-        Ident,
+        Ident, Span,
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
@@ -21,32 +21,43 @@ pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) 
     )
 }
 
-type LexerInput<'src> = WithContext<SimpleSpan<usize, usize>, &'src str>;
-type LexerError<'src> = extra::Err<Rich<'src, char, SimpleSpan<usize, usize>>>;
+type LexerInput<'src> = WithContext<Span, &'src str>;
+type LexerError<'src> = extra::Err<Rich<'src, char, Span>>;
 
-fn tokens_parser<'src>()
--> impl Parser<'src, LexerInput<'src>, Vec<(Token, SimpleSpan<usize, usize>)>, LexerError<'src>> {
+fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span)>, LexerError<'src>>
+{
     recursive(|tokens| {
         let num = text::int(10)
             .then(just('.').then(text::digits(10).or_not()).or_not())
             .to_slice()
             .from_str()
             .unwrapped()
-            .map(Token::Number);
+            .map(Token::Number)
+            .boxed();
 
-        let kw_ident = text::ascii::ident().map(|ident: &str| match ident {
-            "print" => Token::Kw(Kw::Print),
-            _ => Token::Ident(Ident::get_or_intern(ident)),
-        });
+        let kw_ident = text::ascii::ident()
+            .map(|ident: &str| match ident {
+                "print" => Token::Kw(Kw::Print),
+                _ => Token::Ident(Ident::get_or_intern(ident)),
+            })
+            .boxed();
 
         let ctrl = choice((
+            just("++").to(Ctrl::DoublePlus),
+            just("--").to(Ctrl::DoubleMinus),
+            just("<<").to(Ctrl::DoubleLt),
+            just(">>").to(Ctrl::DoubleGt),
             just(';').to(Ctrl::Semicolon),
             just('+').to(Ctrl::Plus),
             just('-').to(Ctrl::Minus),
             just('*').to(Ctrl::Star),
             just('/').to(Ctrl::Slash),
+            just('%').to(Ctrl::Percent),
+            just('.').to(Ctrl::Dot),
+            just('~').to(Ctrl::Tilde),
         ))
-        .map(Token::Ctrl);
+        .map(Token::Ctrl)
+        .boxed();
 
         let parentheses = tokens
             .clone()
@@ -58,7 +69,8 @@ fn tokens_parser<'src>()
                 |span| vec![(Token::Error, span)],
             )))
             .map(Tokens)
-            .map(Token::Parentheses);
+            .map(Token::Parentheses)
+            .boxed();
 
         let curly_braces = tokens
             .clone()
@@ -70,11 +82,13 @@ fn tokens_parser<'src>()
                 |span| vec![(Token::Error, span)],
             )))
             .map(Tokens)
-            .map(Token::CurlyBraces);
+            .map(Token::CurlyBraces)
+            .boxed();
 
         let comment = just("//")
             .then(any().and_is(just('\n').not()).repeated())
-            .padded();
+            .padded()
+            .boxed();
 
         choice((num, kw_ident, ctrl, parentheses, curly_braces))
             .map_with(|tok, e| (tok, e.span()))
@@ -82,6 +96,8 @@ fn tokens_parser<'src>()
             .padded()
             .repeated()
             .collect()
+            .boxed()
     })
     .then_ignore(end())
+    .boxed()
 }

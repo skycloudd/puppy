@@ -1,5 +1,5 @@
 use crate::RODEO;
-use chumsky::span::SimpleSpanned;
+use chumsky::span::{SimpleSpan, SimpleSpanned};
 use lasso::Spur;
 
 pub mod ast;
@@ -18,4 +18,5 @@ impl Ident {
     }
 }
 
-type Spanned<T> = SimpleSpanned<T, usize, usize>;
+pub type Span = SimpleSpan<usize, usize>;
+pub type Spanned<T> = SimpleSpanned<T, usize, usize>;

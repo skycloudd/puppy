@@ -1,4 +1,5 @@
-use chumsky::{error::Rich, span::SimpleSpan};
+use crate::ir::Span;
+use chumsky::error::Rich;
 use codespan_reporting::diagnostic::Label;
 use core::fmt::Display;
 
@@ -26,11 +27,11 @@ impl DiagnosticType {
 #[derive(Debug)]
 pub struct ParserError {
     pub reason: String,
-    pub span: SimpleSpan<usize, usize>,
+    pub span: Span,
 }
 
-impl<'a, T: Display> From<Rich<'a, T, SimpleSpan<usize, usize>>> for ParserError {
-    fn from(value: Rich<'a, T, SimpleSpan<usize, usize>>) -> Self {
+impl<'a, T: Display> From<Rich<'a, T, Span>> for ParserError {
+    fn from(value: Rich<'a, T, Span>) -> Self {
         Self {
             reason: value.reason().to_string(),
             span: *value.span(),

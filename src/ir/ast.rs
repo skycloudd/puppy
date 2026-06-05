@@ -17,13 +17,17 @@ pub enum Statement {
     Print(Spanned<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Number(OrderedFloat<f64>),
     Ident(Ident),
-    UnaryOp {
-        rhs: Spanned<Box<Self>>,
-        op: Spanned<UnaryOp>,
+    PrefixOp {
+        expr: Spanned<Box<Self>>,
+        op: Spanned<PrefixOp>,
+    },
+    PostfixOp {
+        expr: Spanned<Box<Self>>,
+        op: Spanned<PostfixOp>,
     },
     BinaryOp {
         lhs: Spanned<Box<Self>>,
@@ -33,8 +37,19 @@ pub enum Expression {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum UnaryOp {
+pub enum PrefixOp {
+    Inc,
+    Dec,
+    Pos,
     Neg,
+    BitwiseNot,
+}
+
+#[derive(Clone, Debug)]
+pub enum PostfixOp {
+    Inc,
+    Dec,
+    FieldAccess(Ident),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -43,4 +58,10 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+    Modulo,
+    LeftBitshift,
+    RightBitshift,
+    BitwiseAnd,
+    BitwiseXor,
+    BitwiseOr,
 }

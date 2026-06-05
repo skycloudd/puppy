@@ -1,9 +1,8 @@
-use crate::ir::Ident;
-use chumsky::span::SimpleSpan;
+use crate::ir::{Ident, Span};
 use ordered_float::OrderedFloat;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Tokens(pub Vec<(Token, SimpleSpan<usize, usize>)>);
+pub struct Tokens(pub Vec<(Token, Span)>);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
@@ -23,11 +22,21 @@ pub enum Kw {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ctrl {
+    DoublePlus,
+    DoubleMinus,
+    DoubleLt,
+    DoubleGt,
     Semicolon,
     Plus,
     Minus,
     Star,
     Slash,
+    Percent,
+    Dot,
+    Tilde,
+    Ampersand,
+    Caret,
+    Pipe,
 }
 
 impl core::fmt::Display for Token {
@@ -55,11 +64,21 @@ impl core::fmt::Display for Kw {
 impl core::fmt::Display for Ctrl {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::DoublePlus => write!(f, "++"),
+            Self::DoubleMinus => write!(f, "--"),
+            Self::DoubleLt => write!(f, "<<"),
+            Self::DoubleGt => write!(f, ">>"),
             Self::Semicolon => write!(f, ";"),
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),
             Self::Star => write!(f, "*"),
             Self::Slash => write!(f, "/"),
+            Self::Percent => write!(f, "%"),
+            Self::Dot => write!(f, "."),
+            Self::Tilde => write!(f, "~"),
+            Self::Ampersand => write!(f, "&"),
+            Self::Caret => write!(f, "^"),
+            Self::Pipe => write!(f, "|"),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{db::PuppyDatabaseImpl, diagnostics::Diagnostic, ir::SourceProgram, span::Ctx};
+use crate::{db::PuppyDatabaseImpl, diagnostics::Diagnostic, ir::SourceProgram};
 use camino::{Utf8Path, Utf8PathBuf};
 use codespan_reporting::{
     files::SimpleFiles,
@@ -16,7 +16,6 @@ mod diagnostics;
 mod ir;
 mod lexer;
 mod parser;
-mod span;
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -32,9 +31,9 @@ fn main() {
     let mut files = SimpleFiles::new();
 
     let source = read_to_string(&args.input).unwrap();
-    let id = files.add(args.input.as_ref(), source.as_ref());
+    let file_id = files.add(args.input.as_ref(), source.as_ref());
 
-    let source_program = SourceProgram::new(&db, source.clone(), Ctx(id));
+    let source_program = SourceProgram::new(&db, source.clone(), file_id);
 
     compile::compile(&db, source_program);
 

@@ -9,20 +9,25 @@ pub struct Tokens(pub Vec<(Token, SimpleSpan<usize, usize>)>);
 pub enum Token {
     Error,
     Parentheses(Tokens),
+    CurlyBraces(Tokens),
     Ident(Ident),
     Number(OrderedFloat<f64>),
     Kw(Kw),
     Ctrl(Ctrl),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kw {
     Print,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ctrl {
     Semicolon,
+    Plus,
+    Minus,
+    Star,
+    Slash,
 }
 
 impl core::fmt::Display for Token {
@@ -30,6 +35,7 @@ impl core::fmt::Display for Token {
         match self {
             Self::Error => write!(f, "<error>"),
             Self::Parentheses(_) => write!(f, "(...)"),
+            Self::CurlyBraces(_) => write!(f, "{{...}}"),
             Self::Ident(i) => write!(f, "{}", i.resolve()),
             Self::Number(n) => write!(f, "{n}"),
             Self::Kw(kw) => write!(f, "{kw}"),
@@ -50,6 +56,10 @@ impl core::fmt::Display for Ctrl {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Semicolon => write!(f, ";"),
+            Self::Plus => write!(f, "+"),
+            Self::Minus => write!(f, "-"),
+            Self::Star => write!(f, "*"),
+            Self::Slash => write!(f, "/"),
         }
     }
 }

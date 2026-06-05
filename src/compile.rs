@@ -7,8 +7,10 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
 
     errors.extend(lexer_errors);
 
-    if let Some((program, parser_errors)) = tokens.as_ref().map(parser) {
+    if let Some((ast, parser_errors)) = tokens.as_ref().map(parser) {
         errors.extend(parser_errors);
+
+        dbg!(ast);
     }
 
     errors

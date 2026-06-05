@@ -39,7 +39,14 @@ fn tokens_parser<'src>()
             _ => Token::Ident(Ident::get_or_intern(ident)),
         });
 
-        let ctrl = choice((just(';').to(Ctrl::Semicolon),)).map(Token::Ctrl);
+        let ctrl = choice((
+            just(';').to(Ctrl::Semicolon),
+            just('+').to(Ctrl::Plus),
+            just('-').to(Ctrl::Minus),
+            just('*').to(Ctrl::Star),
+            just('/').to(Ctrl::Slash),
+        ))
+        .map(Token::Ctrl);
 
         let parentheses = tokens
             .clone()
@@ -53,11 +60,23 @@ fn tokens_parser<'src>()
             .map(Tokens)
             .map(Token::Parentheses);
 
+        let curly_braces = tokens
+            .clone()
+            .delimited_by(just('{'), just('}'))
+            .recover_with(via_parser(nested_delimiters(
+                '{',
+                '}',
+                [('(', ')')],
+                |span| vec![(Token::Error, span)],
+            )))
+            .map(Tokens)
+            .map(Token::CurlyBraces);
+
         let comment = just("//")
             .then(any().and_is(just('\n').not()).repeated())
             .padded();
 
-        choice((parentheses, kw_ident, num, ctrl))
+        choice((num, kw_ident, ctrl, parentheses, curly_braces))
             .map_with(|tok, e| (tok, e.span()))
             .padded_by(comment.repeated())
             .padded()

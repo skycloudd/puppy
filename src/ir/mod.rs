@@ -1,4 +1,5 @@
 use crate::RODEO;
+use chumsky::span::SimpleSpanned;
 use lasso::Spur;
 
 pub mod ast;
@@ -16,3 +17,5 @@ impl Ident {
         Self(RODEO.get_or_intern(ident))
     }
 }
+
+type Spanned<T> = SimpleSpanned<T, usize, usize>;

@@ -2,7 +2,6 @@ use chumsky::{error::Rich, span::SimpleSpan};
 use codespan_reporting::diagnostic::Label;
 use core::fmt::Display;
 
-#[salsa::accumulator]
 #[derive(Debug)]
 pub struct Diagnostic(pub DiagnosticType);
 

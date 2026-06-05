@@ -1,29 +1,24 @@
 use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
-        SourceProgram,
+        Ident,
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
 use chumsky::{input::WithContext, prelude::*};
-use salsa::Accumulator as _;
 
-#[salsa::tracked]
-pub fn lexer(db: &dyn crate::Db, source: SourceProgram) -> Option<Tokens<'_>> {
-    let source_text = source.text(db);
-    let file_ctx = source.file_ctx(db);
-
+pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) {
     let (tokens, errors) = tokens_parser()
-        .parse(source_text.with_context(file_ctx))
+        .parse(source.with_context(file_id))
         .into_output_errors();
 
-    for error in errors {
-        let diagnostic = Diagnostic(DiagnosticType::ParserError(error.into()));
-
-        diagnostic.accumulate(db);
-    }
-
-    tokens.map(|tokens| Tokens::new(db, tokens))
+    (
+        tokens.map(Tokens),
+        errors
+            .into_iter()
+            .map(|error| Diagnostic(DiagnosticType::ParserError(error.into())))
+            .collect(),
+    )
 }
 
 type LexerInput<'src> = WithContext<SimpleSpan<usize, usize>, &'src str>;
@@ -41,7 +36,7 @@ fn tokens_parser<'src>()
 
         let kw_ident = text::ascii::ident().map(|ident: &str| match ident {
             "print" => Token::Kw(Kw::Print),
-            _ => Token::Ident(ident.to_string()),
+            _ => Token::Ident(Ident::get_or_intern(ident)),
         });
 
         let ctrl = choice((just(';').to(Ctrl::Semicolon),)).map(Token::Ctrl);
@@ -55,12 +50,12 @@ fn tokens_parser<'src>()
                 [('{', '}')],
                 |span| vec![(Token::Error, span)],
             )))
+            .map(Tokens)
             .map(Token::Parentheses);
 
         let comment = just("//")
             .then(any().and_is(just('\n').not()).repeated())
-            .padded()
-            .labelled("comment");
+            .padded();
 
         choice((parentheses, kw_ident, num, ctrl))
             .map_with(|tok, e| (tok, e.span()))

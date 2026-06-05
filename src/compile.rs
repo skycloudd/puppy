@@ -1,12 +1,15 @@
-use crate::{ir::SourceProgram, lexer::lexer, parser::parser};
+use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser};
 
-#[salsa::tracked]
-pub fn compile(db: &dyn crate::Db, source_program: SourceProgram) {
-    let tokens = lexer(db, source_program);
+pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
+    let mut errors = vec![];
 
-    let program = tokens.and_then(|tokens| parser(db, tokens));
+    let (tokens, lexer_errors) = lexer(source, file_id);
 
-    if let Some(program) = program {
-        dbg!(program);
+    errors.extend(lexer_errors);
+
+    if let Some((program, parser_errors)) = tokens.as_ref().map(parser) {
+        errors.extend(parser_errors);
     }
+
+    errors
 }

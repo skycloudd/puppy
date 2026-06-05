@@ -1,4 +1,4 @@
-use crate::{db::PuppyDatabaseImpl, diagnostics::Diagnostic, ir::SourceProgram};
+use crate::diagnostics::Diagnostic;
 use camino::{Utf8Path, Utf8PathBuf};
 use codespan_reporting::{
     files::SimpleFiles,
@@ -7,15 +7,16 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
-use salsa::Database as Db;
-use std::fs::read_to_string;
+use lasso::ThreadedRodeo;
+use std::{fs::read_to_string, sync::LazyLock};
 
 mod compile;
-mod db;
 mod diagnostics;
 mod ir;
 mod lexer;
 mod parser;
+
+pub static RODEO: LazyLock<ThreadedRodeo> = LazyLock::new(ThreadedRodeo::new);
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -26,24 +27,18 @@ struct Args {
 fn main() {
     let args = <Args as clap::Parser>::parse();
 
-    let db = PuppyDatabaseImpl::default();
-
     let mut files = SimpleFiles::new();
 
     let source = read_to_string(&args.input).unwrap();
     let file_id = files.add(args.input.as_ref(), source.as_ref());
 
-    let source_program = SourceProgram::new(&db, source.clone(), file_id);
-
-    compile::compile(&db, source_program);
-
-    let diagnostics = compile::compile::accumulated::<Diagnostic>(&db, source_program);
+    let diagnostics = compile::compile(&source, file_id);
 
     write_diagnostics(&diagnostics, &files).unwrap();
 }
 
 fn write_diagnostics(
-    diagnostics: &[&Diagnostic],
+    diagnostics: &[Diagnostic],
     files: &SimpleFiles<&Utf8Path, &str>,
 ) -> Result<(), Box<dyn core::error::Error>> {
     let writer = StandardStream::stderr(ColorChoice::Auto);

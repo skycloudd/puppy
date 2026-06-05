@@ -1,18 +1,15 @@
+use crate::ir::Ident;
 use chumsky::span::SimpleSpan;
 use ordered_float::OrderedFloat;
 
-#[salsa::tracked(debug)]
-pub struct Tokens<'db> {
-    #[tracked]
-    #[returns(ref)]
-    pub tokens: Vec<(Token, SimpleSpan<usize, usize>)>,
-}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Tokens(pub Vec<(Token, SimpleSpan<usize, usize>)>);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
     Error,
-    Parentheses(Vec<(Self, SimpleSpan<usize, usize>)>),
-    Ident(String),
+    Parentheses(Tokens),
+    Ident(Ident),
     Number(OrderedFloat<f64>),
     Kw(Kw),
     Ctrl(Ctrl),
@@ -33,7 +30,7 @@ impl core::fmt::Display for Token {
         match self {
             Self::Error => write!(f, "<error>"),
             Self::Parentheses(_) => write!(f, "(...)"),
-            Self::Ident(i) => write!(f, "{i}"),
+            Self::Ident(i) => write!(f, "{}", i.resolve()),
             Self::Number(n) => write!(f, "{n}"),
             Self::Kw(kw) => write!(f, "{kw}"),
             Self::Ctrl(ctrl) => write!(f, "{ctrl}"),

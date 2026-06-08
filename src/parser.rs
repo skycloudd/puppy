@@ -42,13 +42,63 @@ fn ast_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ast, Pars
 
 fn statement_parser<'tokens>()
 -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    let print = just(Token::Kw(Kw::Print))
-        .ignore_then(expression_parser().spanned())
-        .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
-        .map(Statement::Print)
+    recursive(|stmt| {
+        let print = just(Token::Kw(Kw::Print))
+            .ignore_then(expression_parser().spanned())
+            .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
+            .map(Statement::Print)
+            .boxed();
+
+        let function = function_parser(stmt);
+
+        choice((print, function)).boxed()
+    })
+}
+
+fn function_parser<'tokens>(
+    stmt: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + 'tokens,
+) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
+    let ident = select! { Token::Ident(ident) => ident }.spanned();
+
+    let params = ident
+        .then_ignore(just(Token::Ctrl(Ctrl::Colon)))
+        .then(ident)
+        .separated_by(just(Token::Ctrl(Ctrl::Comma)))
+        .allow_trailing()
+        .collect()
+        .nested_in(select_ref! {
+            Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
+        })
+        .spanned()
         .boxed();
 
-    choice((print,)).boxed()
+    let body = stmt
+        .spanned()
+        .repeated()
+        .collect()
+        .spanned()
+        .then(expression_parser().spanned().or_not())
+        .nested_in(select_ref! {
+            Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
+        })
+        .boxed();
+
+    just(Token::Kw(Kw::Fn))
+        .ignore_then(ident)
+        .then(params)
+        .then_ignore(just(Token::Ctrl(Ctrl::Arrow)))
+        .then(ident)
+        .then(body)
+        .map(
+            |(((name, params), return_type), (body, return_expr))| Statement::Function {
+                name,
+                params,
+                return_type,
+                body,
+                return_expr,
+            },
+        )
+        .boxed()
 }
 
 fn expression_parser<'tokens>()
@@ -74,8 +124,17 @@ fn expression_parser<'tokens>()
             just(Token::Ctrl(Ctrl::DoublePlus)).to(PostfixOp::Inc),
             just(Token::Ctrl(Ctrl::DoubleMinus)).to(PostfixOp::Dec),
             just(Token::Ctrl(Ctrl::Dot))
-                .ignore_then(select! { Token::Ident(ident) => ident })
+                .ignore_then(select! { Token::Ident(ident) => ident }.spanned())
                 .map(PostfixOp::FieldAccess),
+            expr.spanned()
+                .separated_by(just(Token::Ctrl(Ctrl::Comma)))
+                .allow_trailing()
+                .collect()
+                .nested_in(select_ref! {
+                    Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
+                })
+                .spanned()
+                .map(PostfixOp::FunctionCall),
         ))
         .spanned()
         .boxed();

@@ -19,6 +19,7 @@ pub enum Token {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kw {
     Print,
+    Fn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +28,7 @@ pub enum Ctrl {
     DoubleMinus,
     DoubleLt,
     DoubleGt,
+    Arrow,
     Semicolon,
     Plus,
     Minus,
@@ -38,6 +40,8 @@ pub enum Ctrl {
     Ampersand,
     Caret,
     Pipe,
+    Comma,
+    Colon,
 }
 
 impl core::fmt::Display for Token {
@@ -59,6 +63,7 @@ impl core::fmt::Display for Kw {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Print => write!(f, "print"),
+            Self::Fn => write!(f, "fn"),
         }
     }
 }
@@ -70,6 +75,7 @@ impl core::fmt::Display for Ctrl {
             Self::DoubleMinus => write!(f, "--"),
             Self::DoubleLt => write!(f, "<<"),
             Self::DoubleGt => write!(f, ">>"),
+            Self::Arrow => write!(f, "->"),
             Self::Semicolon => write!(f, ";"),
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),
@@ -81,6 +87,8 @@ impl core::fmt::Display for Ctrl {
             Self::Ampersand => write!(f, "&"),
             Self::Caret => write!(f, "^"),
             Self::Pipe => write!(f, "|"),
+            Self::Comma => write!(f, ","),
+            Self::Colon => write!(f, ":"),
         }
     }
 }

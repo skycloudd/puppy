@@ -37,6 +37,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
         let kw_ident = text::ascii::ident()
             .map(|ident: &str| match ident {
                 "print" => Token::Kw(Kw::Print),
+                "fn" => Token::Kw(Kw::Fn),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),
@@ -48,6 +49,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just("--").to(Ctrl::DoubleMinus),
             just("<<").to(Ctrl::DoubleLt),
             just(">>").to(Ctrl::DoubleGt),
+            just("->").to(Ctrl::Arrow),
             just(';').to(Ctrl::Semicolon),
             just('+').to(Ctrl::Plus),
             just('-').to(Ctrl::Minus),
@@ -56,6 +58,8 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just('%').to(Ctrl::Percent),
             just('.').to(Ctrl::Dot),
             just('~').to(Ctrl::Tilde),
+            just(',').to(Ctrl::Comma),
+            just(':').to(Ctrl::Colon),
         ))
         .map(Token::Ctrl)
         .boxed();

@@ -9,7 +9,7 @@ pub mod token;
 pub struct Ident(Spur);
 
 impl Ident {
-    pub fn resolve(&self) -> &str {
+    pub fn resolve(self) -> &'static str {
         RODEO.resolve(&self.0)
     }
 

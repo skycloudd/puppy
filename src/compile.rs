@@ -1,4 +1,5 @@
 use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser};
+use ptree::print_tree;
 
 pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     let mut errors = vec![];
@@ -7,10 +8,16 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
 
     errors.extend(lexer_errors);
 
-    if let Some((ast, parser_errors)) = tokens.as_ref().map(parser) {
-        errors.extend(parser_errors);
+    let ast = tokens
+        .as_ref()
+        .map(parser)
+        .and_then(|(ast, parser_errors)| {
+            errors.extend(parser_errors);
+            ast
+        });
 
-        dbg!(ast);
+    if let Some(ast) = ast.as_ref() {
+        print_tree(&ast).unwrap();
     }
 
     errors

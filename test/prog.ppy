@@ -1,2 +1,2 @@
-print some.variable++;
-print (2 + 3) * 4 % 5;
+print some.variable.aaa++ / true;
+print (2 + 3) * 4 % (5 * 6);

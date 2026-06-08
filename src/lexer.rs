@@ -27,17 +27,18 @@ type LexerError<'src> = extra::Err<Rich<'src, char, Span>>;
 fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span)>, LexerError<'src>>
 {
     recursive(|tokens| {
-        let num = text::int(10)
-            .then(just('.').then(text::digits(10).or_not()).or_not())
+        let int = text::int(10)
             .to_slice()
             .from_str()
             .unwrapped()
-            .map(Token::Number)
+            .map(Token::Int)
             .boxed();
 
         let kw_ident = text::ascii::ident()
             .map(|ident: &str| match ident {
                 "print" => Token::Kw(Kw::Print),
+                "true" => Token::Bool(true),
+                "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),
             })
             .boxed();
@@ -90,7 +91,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .padded()
             .boxed();
 
-        choice((num, kw_ident, ctrl, parentheses, curly_braces))
+        choice((int, kw_ident, ctrl, parentheses, curly_braces))
             .map_with(|tok, e| (tok, e.span()))
             .padded_by(comment.repeated())
             .padded()

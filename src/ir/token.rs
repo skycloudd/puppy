@@ -1,5 +1,5 @@
 use crate::ir::{Ident, Span};
-use ordered_float::OrderedFloat;
+use num_bigint::BigUint;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tokens(pub Vec<(Token, Span)>);
@@ -10,7 +10,8 @@ pub enum Token {
     Parentheses(Tokens),
     CurlyBraces(Tokens),
     Ident(Ident),
-    Number(OrderedFloat<f64>),
+    Int(BigUint),
+    Bool(bool),
     Kw(Kw),
     Ctrl(Ctrl),
 }
@@ -46,7 +47,8 @@ impl core::fmt::Display for Token {
             Self::Parentheses(_) => write!(f, "(...)"),
             Self::CurlyBraces(_) => write!(f, "{{...}}"),
             Self::Ident(i) => write!(f, "{}", i.resolve()),
-            Self::Number(n) => write!(f, "{n}"),
+            Self::Int(n) => write!(f, "{n}"),
+            Self::Bool(b) => write!(f, "{b}"),
             Self::Kw(kw) => write!(f, "{kw}"),
             Self::Ctrl(ctrl) => write!(f, "{ctrl}"),
         }

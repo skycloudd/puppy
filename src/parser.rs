@@ -63,7 +63,8 @@ fn expression_parser<'tokens>()
 
         let simple = select! {
             Token::Ident(ident) = e => Expression::Ident(ident),
-            Token::Number(n) => Expression::Number(n)
+            Token::Int(n) => Expression::Int(n),
+            Token::Bool(n) => Expression::Bool(n),
         }
         .boxed();
 

@@ -2,7 +2,7 @@ use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
         Span, Spanned,
-        ast::{Ast, BinaryOp, Expression, PostfixOp, PrefixOp, Statement},
+        ast::{Ast, BinaryOp, ConditionalBranch, Expression, Path, PostfixOp, PrefixOp, Statement},
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
@@ -36,7 +36,7 @@ fn ast_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ast, Pars
         .repeated()
         .collect()
         .spanned()
-        .map(Ast::new)
+        .map(|statements| Ast { statements })
         .boxed()
 }
 
@@ -75,7 +75,7 @@ fn function_parser<'tokens>(
 
     let params = ident
         .then_ignore(just(Token::Ctrl(Ctrl::Colon)))
-        .then(ident)
+        .then(path_parser().spanned())
         .separated_by(just(Token::Ctrl(Ctrl::Comma)))
         .allow_trailing()
         .collect()
@@ -100,7 +100,7 @@ fn function_parser<'tokens>(
         .ignore_then(ident)
         .then(params)
         .then_ignore(just(Token::Ctrl(Ctrl::Arrow)))
-        .then(ident)
+        .then(path_parser().spanned())
         .then(body)
         .map(
             |(((name, params), return_type), (body, return_expr))| Statement::Function {
@@ -129,22 +129,20 @@ fn conditional_parser<'tokens>(
     just(Token::Kw(Kw::If))
         .ignore_then(expression_parser().spanned())
         .then(block.clone())
+        .map(|(condition, block)| ConditionalBranch { condition, block })
+        .spanned()
         .then(
             just(Token::Kw(Kw::Elif))
                 .ignore_then(expression_parser().spanned())
                 .then(block.clone())
+                .map(|(condition, block)| ConditionalBranch { condition, block })
+                .spanned()
                 .repeated()
-                .collect(),
+                .collect()
+                .spanned(),
         )
         .then(just(Token::Kw(Kw::Else)).ignore_then(block).or_not())
-        .map(
-            |(((condition, if_), elifs), else_)| Statement::Conditional {
-                condition,
-                if_,
-                elifs,
-                else_,
-            },
-        )
+        .map(|((if_, elifs), else_)| Statement::Conditional { if_, elifs, else_ })
 }
 
 fn expression_parser<'tokens>()
@@ -157,6 +155,8 @@ fn expression_parser<'tokens>()
             })
             .boxed();
 
+        let path = path_parser().map(Expression::Path);
+
         let simple = select! {
             Token::Ident(ident) = e => Expression::Ident(ident),
             Token::Int(n) => Expression::Int(n),
@@ -164,7 +164,7 @@ fn expression_parser<'tokens>()
         }
         .boxed();
 
-        let atom = choice((parentheses, simple)).boxed();
+        let atom = choice((parentheses, path, simple)).boxed();
 
         let postfix_op = choice((
             just(Token::Ctrl(Ctrl::DoublePlus)).to(PostfixOp::Inc),
@@ -298,4 +298,14 @@ fn expression_parser<'tokens>()
         bitwise_or.map(|s| *s.inner).boxed()
     })
     .boxed()
+}
+
+fn path_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Path, ParserError<'tokens>>
+{
+    select! { Token::Ident(ident) => ident }
+        .spanned()
+        .separated_by(just(Token::Ctrl(Ctrl::DoubleColon)))
+        .at_least(1)
+        .collect()
+        .map(Path)
 }

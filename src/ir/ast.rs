@@ -6,36 +6,38 @@ pub struct Ast {
     pub statements: Spanned<Vec<Spanned<Statement>>>,
 }
 
-impl Ast {
-    pub const fn new(statements: Spanned<Vec<Spanned<Statement>>>) -> Self {
-        Self { statements }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum Statement {
     Print(Spanned<Expression>),
     Function {
         name: Spanned<Ident>,
-        params: Spanned<Vec<(Spanned<Ident>, Spanned<Ident>)>>,
-        return_type: Spanned<Ident>,
-        body: Spanned<Vec<Spanned<Self>>>,
+        params: Spanned<Vec<(Spanned<Ident>, Spanned<Path>)>>,
+        return_type: Spanned<Path>,
+        body: Spanned<Block>,
         return_expr: Option<Spanned<Expression>>,
     },
-    Block(Spanned<Vec<Spanned<Self>>>),
+    Block(Spanned<Block>),
     Conditional {
-        condition: Spanned<Expression>,
-        if_: Spanned<Vec<Spanned<Self>>>,
-        elifs: Vec<(Spanned<Expression>, Spanned<Vec<Spanned<Self>>>)>,
-        else_: Option<Spanned<Vec<Spanned<Self>>>>,
+        if_: Spanned<ConditionalBranch>,
+        elifs: Spanned<Vec<Spanned<ConditionalBranch>>>,
+        else_: Option<Spanned<Block>>,
     },
 }
+
+#[derive(Clone, Debug)]
+pub struct ConditionalBranch {
+    pub condition: Spanned<Expression>,
+    pub block: Spanned<Block>,
+}
+
+type Block = Vec<Spanned<Statement>>;
 
 #[derive(Clone, Debug)]
 pub enum Expression {
     Int(BigUint),
     Bool(bool),
     Ident(Ident),
+    Path(Path),
     PrefixOp {
         expr: Spanned<Box<Self>>,
         op: Spanned<PrefixOp>,
@@ -50,6 +52,9 @@ pub enum Expression {
         op: Spanned<BinaryOp>,
     },
 }
+
+#[derive(Clone, Debug)]
+pub struct Path(pub Vec<Spanned<Ident>>);
 
 #[derive(Clone, Copy, Debug)]
 pub enum PrefixOp {

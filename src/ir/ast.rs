@@ -22,6 +22,13 @@ pub enum Statement {
         body: Spanned<Vec<Spanned<Self>>>,
         return_expr: Option<Spanned<Expression>>,
     },
+    Block(Spanned<Vec<Spanned<Self>>>),
+    Conditional {
+        condition: Spanned<Expression>,
+        if_: Spanned<Vec<Spanned<Self>>>,
+        elifs: Vec<(Spanned<Expression>, Spanned<Vec<Spanned<Self>>>)>,
+        else_: Option<Spanned<Vec<Spanned<Self>>>>,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -70,6 +77,12 @@ pub enum BinaryOp {
     Modulo,
     LeftBitshift,
     RightBitshift,
+    LessThan,
+    GreaterThan,
+    LessThanEquals,
+    GreaterThanEquals,
+    Equal,
+    NotEqual,
     BitwiseAnd,
     BitwiseXor,
     BitwiseOr,

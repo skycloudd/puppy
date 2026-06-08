@@ -49,9 +49,22 @@ fn statement_parser<'tokens>()
             .map(Statement::Print)
             .boxed();
 
-        let function = function_parser(stmt);
+        let function = function_parser(stmt.clone());
 
-        choice((print, function)).boxed()
+        let block = stmt
+            .clone()
+            .spanned()
+            .repeated()
+            .collect()
+            .nested_in(select_ref! {
+                Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
+            })
+            .spanned()
+            .map(Statement::Block);
+
+        let conditional = conditional_parser(stmt);
+
+        choice((print, function, block, conditional)).boxed()
     })
 }
 
@@ -99,6 +112,39 @@ fn function_parser<'tokens>(
             },
         )
         .boxed()
+}
+
+fn conditional_parser<'tokens>(
+    stmt: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + Clone + 'tokens,
+) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
+    let block = stmt
+        .spanned()
+        .repeated()
+        .collect()
+        .nested_in(select_ref! {
+            Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
+        })
+        .spanned();
+
+    just(Token::Kw(Kw::If))
+        .ignore_then(expression_parser().spanned())
+        .then(block.clone())
+        .then(
+            just(Token::Kw(Kw::Elif))
+                .ignore_then(expression_parser().spanned())
+                .then(block.clone())
+                .repeated()
+                .collect(),
+        )
+        .then(just(Token::Kw(Kw::Else)).ignore_then(block).or_not())
+        .map(
+            |(((condition, if_), elifs), else_)| Statement::Conditional {
+                condition,
+                if_,
+                elifs,
+                else_,
+            },
+        )
 }
 
 fn expression_parser<'tokens>()
@@ -216,8 +262,24 @@ fn expression_parser<'tokens>()
         );
 
         binary_op!(
-            bitwise_and,
+            relational_less_greater,
             bitshift,
+            Ctrl::LessThan => BinaryOp::LessThan,
+            Ctrl::GreaterThan => BinaryOp::GreaterThan,
+            Ctrl::LessThanEquals => BinaryOp::LessThanEquals,
+            Ctrl::GreaterThanEquals => BinaryOp::GreaterThanEquals
+        );
+
+        binary_op!(
+            relational_equal,
+            relational_less_greater,
+            Ctrl::DoubleEquals => BinaryOp::Equal,
+            Ctrl::NotEquals => BinaryOp::NotEqual,
+        );
+
+        binary_op!(
+            bitwise_and,
+            relational_equal,
             Ctrl::Ampersand => BinaryOp::BitwiseAnd,
         );
 

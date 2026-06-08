@@ -1,11 +1,21 @@
 fn test_function(a: int, b: int, c: int) -> int {
-    print a;
-    print b;
-    print c;
+    {
+        print a;
+        print b;
+        print c;
+    }
+
+    if dog.wraffwrf == 123456789 {
+        print (2 + 3) * 4 % (5 * 6);
+    } elif dog.arfarff != 235906785267805 {
+        print meow.good.kitty++ / true;
+    } elif cat.mreoww >= 45789897 {
+        print --meow.good.kitty / false;
+    } else {
+        print test_function(a, 2 + 2, c);
+    }
 
     (a + b) * c
 }
 
 print some.variable.aaa++ / true;
-print (2 + 3) * 4 % (5 * 6);
-print test_function(a, 2 + 2, c);

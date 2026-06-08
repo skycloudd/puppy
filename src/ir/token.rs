@@ -20,6 +20,9 @@ pub enum Token {
 pub enum Kw {
     Print,
     Fn,
+    If,
+    Elif,
+    Else,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,6 +32,10 @@ pub enum Ctrl {
     DoubleLt,
     DoubleGt,
     Arrow,
+    DoubleEquals,
+    NotEquals,
+    LessThanEquals,
+    GreaterThanEquals,
     Semicolon,
     Plus,
     Minus,
@@ -42,6 +49,8 @@ pub enum Ctrl {
     Pipe,
     Comma,
     Colon,
+    LessThan,
+    GreaterThan,
 }
 
 impl core::fmt::Display for Token {
@@ -64,6 +73,9 @@ impl core::fmt::Display for Kw {
         match self {
             Self::Print => write!(f, "print"),
             Self::Fn => write!(f, "fn"),
+            Self::If => write!(f, "if"),
+            Self::Elif => write!(f, "elif"),
+            Self::Else => write!(f, "else"),
         }
     }
 }
@@ -75,6 +87,10 @@ impl core::fmt::Display for Ctrl {
             Self::DoubleMinus => write!(f, "--"),
             Self::DoubleLt => write!(f, "<<"),
             Self::DoubleGt => write!(f, ">>"),
+            Self::DoubleEquals => write!(f, "=="),
+            Self::NotEquals => write!(f, "!="),
+            Self::LessThanEquals => write!(f, "<="),
+            Self::GreaterThanEquals => write!(f, ">="),
             Self::Arrow => write!(f, "->"),
             Self::Semicolon => write!(f, ";"),
             Self::Plus => write!(f, "+"),
@@ -89,6 +105,8 @@ impl core::fmt::Display for Ctrl {
             Self::Pipe => write!(f, "|"),
             Self::Comma => write!(f, ","),
             Self::Colon => write!(f, ":"),
+            Self::LessThan => write!(f, "<"),
+            Self::GreaterThan => write!(f, ">"),
         }
     }
 }

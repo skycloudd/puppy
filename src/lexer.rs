@@ -38,6 +38,9 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .map(|ident: &str| match ident {
                 "print" => Token::Kw(Kw::Print),
                 "fn" => Token::Kw(Kw::Fn),
+                "if" => Token::Kw(Kw::If),
+                "elif" => Token::Kw(Kw::Elif),
+                "else" => Token::Kw(Kw::Else),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),
@@ -49,6 +52,10 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just("--").to(Ctrl::DoubleMinus),
             just("<<").to(Ctrl::DoubleLt),
             just(">>").to(Ctrl::DoubleGt),
+            just("==").to(Ctrl::DoubleEquals),
+            just("!=").to(Ctrl::NotEquals),
+            just("<=").to(Ctrl::LessThanEquals),
+            just(">=").to(Ctrl::GreaterThanEquals),
             just("->").to(Ctrl::Arrow),
             just(';').to(Ctrl::Semicolon),
             just('+').to(Ctrl::Plus),
@@ -60,6 +67,8 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just('~').to(Ctrl::Tilde),
             just(',').to(Ctrl::Comma),
             just(':').to(Ctrl::Colon),
+            just('<').to(Ctrl::LessThan),
+            just('>').to(Ctrl::GreaterThan),
         ))
         .map(Token::Ctrl)
         .boxed();

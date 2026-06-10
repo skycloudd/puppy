@@ -49,7 +49,7 @@ fn statement_parser<'tokens>()
             .map(Statement::Print)
             .boxed();
 
-        let function = function_parser(stmt.clone());
+        let function = function_parser(stmt.clone()).boxed();
 
         let block = stmt
             .clone()
@@ -60,9 +60,10 @@ fn statement_parser<'tokens>()
                 Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
             })
             .spanned()
-            .map(Statement::Block);
+            .map(Statement::Block)
+            .boxed();
 
-        let conditional = conditional_parser(stmt);
+        let conditional = conditional_parser(stmt).boxed();
 
         choice((print, function, block, conditional)).boxed()
     })
@@ -99,8 +100,11 @@ fn function_parser<'tokens>(
     just(Token::Kw(Kw::Fn))
         .ignore_then(ident)
         .then(params)
-        .then_ignore(just(Token::Ctrl(Ctrl::Arrow)))
-        .then(path_parser().spanned())
+        .then(
+            just(Token::Ctrl(Ctrl::Arrow))
+                .ignore_then(path_parser().spanned())
+                .or_not(),
+        )
         .then(body)
         .map(
             |(((name, params), return_type), (body, return_expr))| Statement::Function {
@@ -124,7 +128,8 @@ fn conditional_parser<'tokens>(
         .nested_in(select_ref! {
             Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
         })
-        .spanned();
+        .spanned()
+        .boxed();
 
     just(Token::Kw(Kw::If))
         .ignore_then(expression_parser().spanned())
@@ -143,6 +148,7 @@ fn conditional_parser<'tokens>(
         )
         .then(just(Token::Kw(Kw::Else)).ignore_then(block).or_not())
         .map(|((if_, elifs), else_)| Statement::Conditional { if_, elifs, else_ })
+        .boxed()
 }
 
 fn expression_parser<'tokens>()
@@ -203,6 +209,7 @@ fn expression_parser<'tokens>()
             just(Token::Ctrl(Ctrl::DoubleMinus)).to(PrefixOp::Dec),
             just(Token::Ctrl(Ctrl::Plus)).to(PrefixOp::Pos),
             just(Token::Ctrl(Ctrl::Minus)).to(PrefixOp::Neg),
+            just(Token::Ctrl(Ctrl::Bang)).to(PrefixOp::LogicalNot),
             just(Token::Ctrl(Ctrl::Tilde)).to(PrefixOp::BitwiseNot),
         ))
         .spanned()
@@ -221,11 +228,10 @@ fn expression_parser<'tokens>()
             .boxed();
 
         macro_rules! binary_op {
-            ($name:ident, $prev:expr, $($ctrl:expr => $bin_op:expr),+ $(,)?) => {
-                let $name = {
+            ($prev:expr, $($ctrl:expr => $bin_op:expr),+ $(,)?) => {
+                {
                     let op = choice(($(just(Token::Ctrl($ctrl)).to($bin_op),)+))
                         .spanned()
-                        .boxed()
                         .boxed();
 
                     $prev
@@ -235,34 +241,30 @@ fn expression_parser<'tokens>()
                             Box::new(Expression::BinaryOp { lhs, rhs, op }).with_span(span)
                         })
                         .boxed()
-                };
+                }
             };
         }
 
-        binary_op!(
-            factor,
+        let factor = binary_op!(
             prefix,
             Ctrl::Star => BinaryOp::Mul,
             Ctrl::Slash => BinaryOp::Div,
             Ctrl::Percent => BinaryOp::Modulo,
         );
 
-        binary_op!(
-            sum,
+        let sum = binary_op!(
             factor,
             Ctrl::Plus => BinaryOp::Add,
             Ctrl::Minus => BinaryOp::Sub,
         );
 
-        binary_op!(
-            bitshift,
+        let bitshift = binary_op!(
             sum,
             Ctrl::DoubleLt => BinaryOp::LeftBitshift,
             Ctrl::DoubleGt => BinaryOp::RightBitshift,
         );
 
-        binary_op!(
-            relational_less_greater,
+        let relational_less_greater = binary_op!(
             bitshift,
             Ctrl::LessThan => BinaryOp::LessThan,
             Ctrl::GreaterThan => BinaryOp::GreaterThan,
@@ -270,32 +272,38 @@ fn expression_parser<'tokens>()
             Ctrl::GreaterThanEquals => BinaryOp::GreaterThanEquals
         );
 
-        binary_op!(
-            relational_equal,
+        let relational_equal = binary_op!(
             relational_less_greater,
             Ctrl::DoubleEquals => BinaryOp::Equal,
             Ctrl::NotEquals => BinaryOp::NotEqual,
         );
 
-        binary_op!(
-            bitwise_and,
+        let bitwise_and = binary_op!(
             relational_equal,
             Ctrl::Ampersand => BinaryOp::BitwiseAnd,
         );
 
-        binary_op!(
-            bitwise_xor,
+        let bitwise_exclusive_or = binary_op!(
             bitwise_and,
             Ctrl::Caret => BinaryOp::BitwiseXor,
         );
 
-        binary_op!(
-            bitwise_or,
-            bitwise_xor,
+        let bitwise_or = binary_op!(
+            bitwise_exclusive_or,
             Ctrl::Pipe => BinaryOp::BitwiseOr,
         );
 
-        bitwise_or.map(|s| *s.inner).boxed()
+        let logical_and = binary_op!(
+            bitwise_or,
+            Ctrl::DoubleAmpersand => BinaryOp::LogicalAnd,
+        );
+
+        let logical_or = binary_op!(
+            logical_and,
+            Ctrl::DoublePipe => BinaryOp::LogicalOr,
+        );
+
+        logical_or.map(|s| *s.inner).boxed()
     })
     .boxed()
 }

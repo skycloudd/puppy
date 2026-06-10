@@ -47,7 +47,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             })
             .boxed();
 
-        let ctrl = choice((
+        let ctrl_double = choice((
             just("++").to(Ctrl::DoublePlus),
             just("--").to(Ctrl::DoubleMinus),
             just("<<").to(Ctrl::DoubleLt),
@@ -58,6 +58,11 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just("<=").to(Ctrl::LessThanEquals),
             just(">=").to(Ctrl::GreaterThanEquals),
             just("::").to(Ctrl::DoubleColon),
+            just("&&").to(Ctrl::DoubleAmpersand),
+            just("||").to(Ctrl::DoublePipe),
+        ));
+
+        let ctrl_single = choice((
             just(';').to(Ctrl::Semicolon),
             just('+').to(Ctrl::Plus),
             just('-').to(Ctrl::Minus),
@@ -66,13 +71,18 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just('%').to(Ctrl::Percent),
             just('.').to(Ctrl::Dot),
             just('~').to(Ctrl::Tilde),
+            just('&').to(Ctrl::Ampersand),
+            just('^').to(Ctrl::Caret),
+            just('|').to(Ctrl::Pipe),
             just(',').to(Ctrl::Comma),
             just(':').to(Ctrl::Colon),
             just('<').to(Ctrl::LessThan),
             just('>').to(Ctrl::GreaterThan),
-        ))
-        .map(Token::Ctrl)
-        .boxed();
+            just('=').to(Ctrl::Equals),
+            just('!').to(Ctrl::Bang),
+        ));
+
+        let ctrl = choice((ctrl_double, ctrl_single)).map(Token::Ctrl).boxed();
 
         let parentheses = tokens
             .clone()
@@ -80,7 +90,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .recover_with(via_parser(nested_delimiters(
                 '(',
                 ')',
-                [('{', '}')],
+                [('{', '}'), ('[', ']')],
                 |span| vec![(Token::Error, span)],
             )))
             .map(Tokens)
@@ -93,11 +103,24 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .recover_with(via_parser(nested_delimiters(
                 '{',
                 '}',
-                [('(', ')')],
+                [('(', ')'), ('[', ']')],
                 |span| vec![(Token::Error, span)],
             )))
             .map(Tokens)
             .map(Token::CurlyBraces)
+            .boxed();
+
+        let square_brackets = tokens
+            .clone()
+            .delimited_by(just('['), just(']'))
+            .recover_with(via_parser(nested_delimiters(
+                '[',
+                ']',
+                [('(', ')'), ('{', '}')],
+                |span| vec![(Token::Error, span)],
+            )))
+            .map(Tokens)
+            .map(Token::SquareBrackets)
             .boxed();
 
         let comment = just("//")
@@ -105,13 +128,20 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .padded()
             .boxed();
 
-        choice((int, kw_ident, ctrl, parentheses, curly_braces))
-            .map_with(|tok, e| (tok, e.span()))
-            .padded_by(comment.repeated())
-            .padded()
-            .repeated()
-            .collect()
-            .boxed()
+        choice((
+            int,
+            kw_ident,
+            ctrl,
+            parentheses,
+            curly_braces,
+            square_brackets,
+        ))
+        .map_with(|tok, e| (tok, e.span()))
+        .padded_by(comment.repeated())
+        .padded()
+        .repeated()
+        .collect()
+        .boxed()
     })
     .then_ignore(end())
     .boxed()

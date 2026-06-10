@@ -9,6 +9,7 @@ pub enum Token {
     Error,
     Parentheses(Tokens),
     CurlyBraces(Tokens),
+    SquareBrackets(Tokens),
     Ident(Ident),
     Int(BigUint),
     Bool(bool),
@@ -37,6 +38,9 @@ pub enum Ctrl {
     LessThanEquals,
     GreaterThanEquals,
     DoubleColon,
+    DoubleAmpersand,
+    DoublePipe,
+
     Semicolon,
     Plus,
     Minus,
@@ -52,6 +56,8 @@ pub enum Ctrl {
     Colon,
     LessThan,
     GreaterThan,
+    Equals,
+    Bang,
 }
 
 impl core::fmt::Display for Token {
@@ -60,6 +66,7 @@ impl core::fmt::Display for Token {
             Self::Error => write!(f, "<error>"),
             Self::Parentheses(_) => write!(f, "(...)"),
             Self::CurlyBraces(_) => write!(f, "{{...}}"),
+            Self::SquareBrackets(_) => write!(f, "[...]"),
             Self::Ident(i) => write!(f, "{}", i.resolve()),
             Self::Int(n) => write!(f, "{n}"),
             Self::Bool(b) => write!(f, "{b}"),
@@ -94,6 +101,9 @@ impl core::fmt::Display for Ctrl {
             Self::LessThanEquals => write!(f, "<="),
             Self::GreaterThanEquals => write!(f, ">="),
             Self::DoubleColon => write!(f, "::"),
+            Self::DoubleAmpersand => write!(f, "&&"),
+            Self::DoublePipe => write!(f, "||"),
+
             Self::Semicolon => write!(f, ";"),
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),
@@ -109,6 +119,8 @@ impl core::fmt::Display for Ctrl {
             Self::Colon => write!(f, ":"),
             Self::LessThan => write!(f, "<"),
             Self::GreaterThan => write!(f, ">"),
+            Self::Equals => write!(f, "="),
+            Self::Bang => write!(f, "!"),
         }
     }
 }

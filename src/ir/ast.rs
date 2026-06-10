@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::ir::{Ident, Spanned};
 use num_bigint::BigUint;
 
@@ -12,7 +14,7 @@ pub enum Statement {
     Function {
         name: Spanned<Ident>,
         params: Spanned<Vec<(Spanned<Ident>, Spanned<Path>)>>,
-        return_type: Spanned<Path>,
+        return_type: Option<Spanned<Path>>,
         body: Spanned<Block>,
         return_expr: Option<Spanned<Expression>>,
     },
@@ -62,6 +64,7 @@ pub enum PrefixOp {
     Dec,
     Pos,
     Neg,
+    LogicalNot,
     BitwiseNot,
 }
 
@@ -75,11 +78,11 @@ pub enum PostfixOp {
 
 #[derive(Clone, Copy, Debug)]
 pub enum BinaryOp {
-    Add,
-    Sub,
     Mul,
     Div,
     Modulo,
+    Add,
+    Sub,
     LeftBitshift,
     RightBitshift,
     LessThan,
@@ -91,4 +94,6 @@ pub enum BinaryOp {
     BitwiseAnd,
     BitwiseXor,
     BitwiseOr,
+    LogicalAnd,
+    LogicalOr,
 }

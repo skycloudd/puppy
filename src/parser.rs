@@ -8,6 +8,9 @@ use crate::{
 };
 use chumsky::{input::MappedInput, prelude::*};
 
+type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [(Token, Span)]>;
+type ParserError<'tokens> = extra::Err<Rich<'tokens, Token, Span>>;
+
 pub fn parser(tokens: &Tokens) -> (Option<Ast>, Vec<Diagnostic>) {
     let eoi = tokens
         .0
@@ -26,9 +29,6 @@ pub fn parser(tokens: &Tokens) -> (Option<Ast>, Vec<Diagnostic>) {
             .collect(),
     )
 }
-
-type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [(Token, Span)]>;
-type ParserError<'tokens> = extra::Err<Rich<'tokens, Token, Span>>;
 
 fn ast_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ast, ParserError<'tokens>> {
     statement_parser()
@@ -165,8 +165,8 @@ fn expression_parser<'tokens>()
 
         let simple = select! {
             Token::Ident(ident) = e => Expression::Ident(ident),
-            Token::Int(n) => Expression::Int(n),
-            Token::Bool(n) => Expression::Bool(n),
+            Token::Int(value) => Expression::Int(value),
+            Token::Bool(value) => Expression::Bool(value),
         }
         .boxed();
 
@@ -303,7 +303,7 @@ fn expression_parser<'tokens>()
             Ctrl::DoublePipe => BinaryOp::LogicalOr,
         );
 
-        logical_or.map(|s| *s.inner).boxed()
+        logical_or.map(|expr| *expr.inner).boxed()
     })
     .boxed()
 }

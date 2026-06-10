@@ -5,8 +5,10 @@ use num_bigint::BigUint;
 
 #[derive(Clone, Debug)]
 pub struct Ast {
-    pub statements: Spanned<Vec<Spanned<Statement>>>,
+    pub statements: Spanned<Statements>,
 }
+
+type Statements = Vec<Spanned<Statement>>;
 
 #[derive(Clone, Debug)]
 pub enum Statement {
@@ -15,24 +17,22 @@ pub enum Statement {
         name: Spanned<Ident>,
         params: Spanned<Vec<(Spanned<Ident>, Spanned<Path>)>>,
         return_type: Option<Spanned<Path>>,
-        body: Spanned<Block>,
+        body: Spanned<Statements>,
         return_expr: Option<Spanned<Expression>>,
     },
-    Block(Spanned<Block>),
+    Block(Spanned<Statements>),
     Conditional {
         if_: Spanned<ConditionalBranch>,
         elifs: Spanned<Vec<Spanned<ConditionalBranch>>>,
-        else_: Option<Spanned<Block>>,
+        else_: Option<Spanned<Statements>>,
     },
 }
 
 #[derive(Clone, Debug)]
 pub struct ConditionalBranch {
     pub condition: Spanned<Expression>,
-    pub block: Spanned<Block>,
+    pub block: Spanned<Statements>,
 }
-
-type Block = Vec<Spanned<Statement>>;
 
 #[derive(Clone, Debug)]
 pub enum Expression {

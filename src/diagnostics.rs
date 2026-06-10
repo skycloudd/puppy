@@ -1,6 +1,6 @@
 use crate::ir::Span;
 use chumsky::error::Rich;
-use codespan_reporting::diagnostic::Label;
+use codespan_reporting::diagnostic::{self, Label};
 use core::fmt::Display;
 
 #[derive(Debug)]
@@ -12,9 +12,9 @@ pub enum DiagnosticType {
 }
 
 impl DiagnosticType {
-    pub fn report(&self) -> codespan_reporting::diagnostic::Diagnostic<usize> {
+    pub fn report(&self) -> diagnostic::Diagnostic<usize> {
         match self {
-            Self::ParserError(parser_error) => codespan_reporting::diagnostic::Diagnostic::error()
+            Self::ParserError(parser_error) => diagnostic::Diagnostic::error()
                 .with_message(&parser_error.reason)
                 .with_label(Label::primary(
                     parser_error.span.context,

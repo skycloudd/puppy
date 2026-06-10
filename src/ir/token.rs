@@ -1,4 +1,5 @@
 use crate::ir::{Ident, Span};
+use core::fmt;
 use num_bigint::BigUint;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -60,24 +61,24 @@ pub enum Ctrl {
     Bang,
 }
 
-impl core::fmt::Display for Token {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Error => write!(f, "<error>"),
             Self::Parentheses(_) => write!(f, "(...)"),
             Self::CurlyBraces(_) => write!(f, "{{...}}"),
             Self::SquareBrackets(_) => write!(f, "[...]"),
-            Self::Ident(i) => write!(f, "{}", i.resolve()),
-            Self::Int(n) => write!(f, "{n}"),
-            Self::Bool(b) => write!(f, "{b}"),
+            Self::Ident(ident) => write!(f, "{}", ident.resolve()),
+            Self::Int(value) => write!(f, "{value}"),
+            Self::Bool(value) => write!(f, "{value}"),
             Self::Kw(kw) => write!(f, "{kw}"),
             Self::Ctrl(ctrl) => write!(f, "{ctrl}"),
         }
     }
 }
 
-impl core::fmt::Display for Kw {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for Kw {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Print => write!(f, "print"),
             Self::Fn => write!(f, "fn"),
@@ -88,8 +89,8 @@ impl core::fmt::Display for Kw {
     }
 }
 
-impl core::fmt::Display for Ctrl {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for Ctrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DoublePlus => write!(f, "++"),
             Self::DoubleMinus => write!(f, "--"),

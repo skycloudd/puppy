@@ -7,6 +7,9 @@ use crate::{
 };
 use chumsky::{input::WithContext, prelude::*};
 
+type LexerInput<'src> = WithContext<Span, &'src str>;
+type LexerError<'src> = extra::Err<Rich<'src, char, Span>>;
+
 pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) {
     let (tokens, errors) = tokens_parser()
         .parse(source.with_context(file_id))
@@ -20,9 +23,6 @@ pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) 
             .collect(),
     )
 }
-
-type LexerInput<'src> = WithContext<Span, &'src str>;
-type LexerError<'src> = extra::Err<Rich<'src, char, Span>>;
 
 fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span)>, LexerError<'src>>
 {

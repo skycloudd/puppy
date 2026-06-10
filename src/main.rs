@@ -2,11 +2,9 @@ use crate::diagnostics::Diagnostic;
 use camino::{Utf8Path, Utf8PathBuf};
 use codespan_reporting::{
     files::{Files as _, SimpleFiles},
-    term::{
-        Config,
-        termcolor::{ColorChoice, StandardStream},
-    },
+    term,
 };
+use core::error::Error;
 use lasso::ThreadedRodeo;
 use std::{fs::read_to_string, sync::LazyLock};
 
@@ -41,17 +39,12 @@ fn main() {
 fn write_diagnostics(
     diagnostics: &[Diagnostic],
     files: &SimpleFiles<&Utf8Path, String>,
-) -> Result<(), Box<dyn core::error::Error>> {
-    let writer = StandardStream::stderr(ColorChoice::Auto);
-    let config = Config::default();
+) -> Result<(), Box<dyn Error>> {
+    let writer = term::termcolor::StandardStream::stderr(term::termcolor::ColorChoice::Auto);
+    let config = term::Config::default();
 
     for diagnostic in diagnostics {
-        codespan_reporting::term::emit_to_write_style(
-            &mut writer.lock(),
-            &config,
-            files,
-            &diagnostic.0.report(),
-        )?;
+        term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic.0.report())?;
     }
 
     Ok(())

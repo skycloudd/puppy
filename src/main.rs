@@ -13,13 +13,14 @@ mod diagnostics;
 mod ir;
 mod lexer;
 mod parser;
+mod typecheck;
 
 pub static RODEO: LazyLock<ThreadedRodeo> = LazyLock::new(ThreadedRodeo::new);
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    inputs: Vec<Utf8PathBuf>,
+    input_file: Utf8PathBuf,
 }
 
 fn main() {
@@ -27,13 +28,12 @@ fn main() {
 
     let mut files = SimpleFiles::new();
 
-    for filename in &args.inputs {
-        let file_id = files.add(filename.as_ref(), read_to_string(filename).unwrap());
+    let source = read_to_string(&args.input_file).unwrap();
+    let file_id = files.add(args.input_file.as_ref(), source);
 
-        let diagnostics = compile::compile(files.source(file_id).unwrap(), file_id);
+    let diagnostics = compile::compile(files.source(file_id).unwrap(), file_id);
 
-        write_diagnostics(&diagnostics, &files).unwrap();
-    }
+    write_diagnostics(&diagnostics, &files).unwrap();
 }
 
 fn write_diagnostics(

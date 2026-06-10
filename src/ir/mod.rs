@@ -4,6 +4,7 @@ use lasso::Spur;
 
 pub mod ast;
 pub mod token;
+pub mod typed;
 
 pub type Span = SimpleSpan<usize, usize>;
 pub type Spanned<T> = SimpleSpanned<T, usize, usize>;

@@ -1,4 +1,4 @@
-use crate::ir::{Ident, Spanned};
+use crate::ir::{Ident, Spanned, ast::Path};
 use num_bigint::BigUint;
 
 #[derive(Clone, Debug)]
@@ -10,13 +10,13 @@ type Statements = Vec<Spanned<Statement>>;
 
 #[derive(Clone, Debug)]
 pub enum Statement {
-    Print(Spanned<Expression>),
+    Print(Spanned<TypedExpression>),
     Function {
         name: Spanned<Ident>,
         params: Spanned<Vec<(Spanned<Ident>, Spanned<Path>)>>,
         return_type: Option<Spanned<Path>>,
         body: Spanned<Statements>,
-        return_expr: Option<Spanned<Expression>>,
+        return_expr: Option<Spanned<TypedExpression>>,
     },
     Block(Spanned<Statements>),
     Conditional {
@@ -28,8 +28,22 @@ pub enum Statement {
 
 #[derive(Clone, Debug)]
 pub struct ConditionalBranch {
-    pub condition: Spanned<Expression>,
+    pub condition: Spanned<TypedExpression>,
     pub block: Spanned<Statements>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Type {
+    Error,
+    Bool,
+    Int,
+    User(Path),
+}
+
+#[derive(Clone, Debug)]
+pub struct TypedExpression {
+    pub expr: Expression,
+    pub ty: Type,
 }
 
 #[derive(Clone, Debug)]
@@ -39,22 +53,19 @@ pub enum Expression {
     Ident(Ident),
     Path(Path),
     PrefixOp {
-        expr: Spanned<Box<Self>>,
+        expr: Spanned<Box<TypedExpression>>,
         op: Spanned<PrefixOp>,
     },
     PostfixOp {
-        expr: Spanned<Box<Self>>,
+        expr: Spanned<Box<TypedExpression>>,
         op: Spanned<PostfixOp>,
     },
     BinaryOp {
-        lhs: Spanned<Box<Self>>,
-        rhs: Spanned<Box<Self>>,
+        lhs: Spanned<Box<TypedExpression>>,
+        rhs: Spanned<Box<TypedExpression>>,
         op: Spanned<BinaryOp>,
     },
 }
-
-#[derive(Clone, Debug)]
-pub struct Path(pub Vec<Spanned<Ident>>);
 
 #[derive(Clone, Copy, Debug)]
 pub enum PrefixOp {
@@ -71,7 +82,7 @@ pub enum PostfixOp {
     Inc,
     Dec,
     FieldAccess(Spanned<Ident>),
-    FunctionCall(Spanned<Vec<Spanned<Expression>>>),
+    FunctionCall(Spanned<Vec<Spanned<TypedExpression>>>),
 }
 
 #[derive(Clone, Copy, Debug)]

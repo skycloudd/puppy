@@ -4,11 +4,12 @@ use lasso::Spur;
 
 pub mod ast;
 pub mod token;
+pub mod typed;
 
 pub type Span = SimpleSpan<usize, usize>;
 pub type Spanned<T> = SimpleSpanned<T, usize, usize>;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Ident(Spur);
 
 impl Ident {

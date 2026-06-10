@@ -9,6 +9,7 @@ pub struct Diagnostic(pub DiagnosticType);
 #[derive(Debug)]
 pub enum DiagnosticType {
     ParserError(ParserError),
+    UndefinedName { name: &'static str, span: Span },
 }
 
 impl DiagnosticType {
@@ -20,6 +21,11 @@ impl DiagnosticType {
                     parser_error.span.context,
                     parser_error.span.into_range(),
                 )),
+            Self::UndefinedName { name, span } => diagnostic::Diagnostic::error()
+                .with_message(format!("Undefined variable '{name}'"))
+                .with_label(
+                    Label::primary(span.context, span.into_range()).with_message("found here"),
+                ),
         }
     }
 }

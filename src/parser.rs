@@ -70,7 +70,7 @@ fn statement_parser<'tokens>()
 }
 
 fn function_parser<'tokens>(
-    stmt: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + 'tokens,
+    statement: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + 'tokens,
 ) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
     let ident = select! { Token::Ident(ident) => ident }.spanned();
 
@@ -86,7 +86,7 @@ fn function_parser<'tokens>(
         .spanned()
         .boxed();
 
-    let body = stmt
+    let body = statement
         .spanned()
         .repeated()
         .collect()
@@ -119,9 +119,11 @@ fn function_parser<'tokens>(
 }
 
 fn conditional_parser<'tokens>(
-    stmt: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + Clone + 'tokens,
+    statement: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>>
+    + Clone
+    + 'tokens,
 ) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    let block = stmt
+    let block = statement
         .spanned()
         .repeated()
         .collect()
@@ -143,8 +145,7 @@ fn conditional_parser<'tokens>(
                 .map(|(condition, block)| ConditionalBranch { condition, block })
                 .spanned()
                 .repeated()
-                .collect()
-                .spanned(),
+                .collect(),
         )
         .then(just(Token::Kw(Kw::Else)).ignore_then(block).or_not())
         .map(|((if_, elifs), else_)| Statement::Conditional { if_, elifs, else_ })
@@ -170,7 +171,7 @@ fn expression_parser<'tokens>()
         }
         .boxed();
 
-        let atom = choice((parentheses, path, simple)).boxed();
+        let atom = choice((parentheses, simple, path)).boxed();
 
         let postfix_op = choice((
             just(Token::Ctrl(Ctrl::DoublePlus)).to(PostfixOp::Inc),

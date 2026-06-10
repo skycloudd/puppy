@@ -1,4 +1,4 @@
-use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser};
+use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser, typecheck::typecheck};
 
 pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     let mut errors = vec![];
@@ -15,8 +15,12 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
             ast
         });
 
-    if let Some(ast) = ast.as_ref() {
-        dbg!(ast);
+    if let Some(ast) = ast {
+        let (typed_ast, typecheck_errors) = typecheck(ast);
+
+        errors.extend(typecheck_errors);
+
+        dbg!(typed_ast);
     }
 
     errors

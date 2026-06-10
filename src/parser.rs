@@ -42,16 +42,16 @@ fn ast_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ast, Pars
 
 fn statement_parser<'tokens>()
 -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    recursive(|stmt| {
+    recursive(|statement| {
         let print = just(Token::Kw(Kw::Print))
             .ignore_then(expression_parser().spanned())
             .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
             .map(Statement::Print)
             .boxed();
 
-        let function = function_parser(stmt.clone()).boxed();
+        let function = function_parser(statement.clone()).boxed();
 
-        let block = stmt
+        let block = statement
             .clone()
             .spanned()
             .repeated()
@@ -63,7 +63,7 @@ fn statement_parser<'tokens>()
             .map(Statement::Block)
             .boxed();
 
-        let conditional = conditional_parser(stmt).boxed();
+        let conditional = conditional_parser(statement).boxed();
 
         choice((print, function, block, conditional)).boxed()
     })
@@ -153,8 +153,8 @@ fn conditional_parser<'tokens>(
 
 fn expression_parser<'tokens>()
 -> impl Parser<'tokens, ParserInput<'tokens>, Expression, ParserError<'tokens>> {
-    recursive(|expr| {
-        let parentheses = expr
+    recursive(|expression| {
+        let parentheses = expression
             .clone()
             .nested_in(select_ref! {
                 Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
@@ -178,7 +178,8 @@ fn expression_parser<'tokens>()
             just(Token::Ctrl(Ctrl::Dot))
                 .ignore_then(select! { Token::Ident(ident) => ident }.spanned())
                 .map(PostfixOp::FieldAccess),
-            expr.spanned()
+            expression
+                .spanned()
                 .separated_by(just(Token::Ctrl(Ctrl::Comma)))
                 .allow_trailing()
                 .collect()

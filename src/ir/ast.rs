@@ -36,7 +36,6 @@ pub struct ConditionalBranch {
 pub enum Expression {
     Int(BigUint),
     Bool(bool),
-    Ident(Ident),
     Path(Path),
     PrefixOp {
         expr: Spanned<Box<Self>>,

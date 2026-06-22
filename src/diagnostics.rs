@@ -22,7 +22,7 @@ impl DiagnosticType {
                     parser_error.span.into_range(),
                 )),
             Self::UndefinedName { name, span } => diagnostic::Diagnostic::error()
-                .with_message(format!("Undefined variable '{name}'"))
+                .with_message(format!("Undefined name '{name}'"))
                 .with_label(
                     Label::primary(span.context, span.into_range()).with_message("found here"),
                 ),

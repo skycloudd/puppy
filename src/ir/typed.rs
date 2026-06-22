@@ -32,12 +32,18 @@ pub struct ConditionalBranch {
     pub block: Spanned<Statements>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Error,
     Bool,
     Int,
-    User(Path),
+    Function(Box<FunctionType>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FunctionType {
+    pub params: Vec<Spanned<Type>>,
+    pub returns: Spanned<Type>,
 }
 
 #[derive(Clone, Debug)]
@@ -50,7 +56,6 @@ pub struct TypedExpression {
 pub enum Expression {
     Int(BigUint),
     Bool(bool),
-    Ident(Ident),
     Path(Path),
     PrefixOp {
         expr: Spanned<Box<TypedExpression>>,

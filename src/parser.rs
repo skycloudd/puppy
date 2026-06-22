@@ -165,7 +165,6 @@ fn expression_parser<'tokens>()
         let path = path_parser().map(Expression::Path);
 
         let simple = select! {
-            Token::Ident(ident) = e => Expression::Ident(ident),
             Token::Int(value) => Expression::Int(value),
             Token::Bool(value) => Expression::Bool(value),
         }

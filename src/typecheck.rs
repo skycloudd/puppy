@@ -3,30 +3,39 @@ use crate::{
     ir::{
         Ident, Span, Spanned,
         ast::{Ast, Expression, Statement},
-        typed::{self, Type, TypedExpression},
+        typed::{self, FunctionType, Type, TypedExpression},
     },
 };
 use chumsky::span::SpanWrap as _;
-use core::hash::Hash;
-use rustc_hash::FxHashMap;
+use slab_tree::{NodeId, Tree, TreeBuilder};
 
 pub fn typecheck(ast: Ast) -> (typed::Ast, Vec<Diagnostic>) {
-    let mut typechecker = Typechecker::default();
+    let mut typechecker = Typechecker::new();
 
     (typechecker.ast(ast), typechecker.diagnostics)
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Typechecker {
     diagnostics: Vec<Diagnostic>,
-    scopes: Scopes<Ident, Type>,
+    item_tree: Tree<Item>,
+    current_node: NodeId,
 }
 
 impl Typechecker {
+    fn new() -> Self {
+        let mut item_tree = Tree::new();
+        let current_node = item_tree.set_root(Item::Global);
+
+        Self {
+            diagnostics: vec![],
+            item_tree,
+            current_node,
+        }
+    }
+
     fn ast(&mut self, ast: Ast) -> typed::Ast {
-        self.scopes.push_empty();
         let statements = self.statements(ast.statements);
-        self.scopes.pop();
 
         typed::Ast { statements }
     }
@@ -54,9 +63,9 @@ impl Typechecker {
                 return_expr,
             } => todo!(),
             Statement::Block(statements) => {
-                self.scopes.push_empty();
+                self.current_node = self.new_node_in(self.current_node, Item::Block);
+
                 let statements = self.statements(statements);
-                self.scopes.pop();
 
                 typed::Statement::Block(statements)
             }
@@ -74,30 +83,57 @@ impl Typechecker {
                 expr: typed::Expression::Bool(value),
                 ty: Type::Bool,
             },
-            Expression::Ident(ident) => {
-                let ty = self.scopes.get(&ident).cloned().unwrap_or_else(|| {
-                    self.diagnostics
-                        .push(Diagnostic(DiagnosticType::UndefinedName {
-                            name: ident.resolve(),
-                            span,
-                        }));
+            Expression::Path(path) => {
+                let mut current_node = None;
+                let mut current_type = Type::Error;
 
-                    Type::Error
-                });
+                for component in &path.0 {
+                    let resolve_in = current_node.unwrap_or(self.current_node);
+
+                    if let Some((node, ty)) = self.resolve_ident_in(component.resolve(), resolve_in)
+                    {
+                        current_node = Some(node);
+                        current_type = ty;
+                    } else {
+                        self.diagnostics
+                            .push(Diagnostic(DiagnosticType::UndefinedName {
+                                name: component.resolve(),
+                                span: component.span,
+                            }));
+
+                        current_type = Type::Error;
+                        break;
+                    }
+                }
 
                 TypedExpression {
-                    expr: typed::Expression::Ident(ident),
-                    ty,
+                    expr: typed::Expression::Path(path),
+                    ty: current_type,
                 }
             }
-            Expression::Path(path) => TypedExpression {
-                expr: typed::Expression::Path(path),
-                ty: todo!(),
-            },
             Expression::PrefixOp { expr, op } => todo!(),
             Expression::PostfixOp { expr, op } => todo!(),
             Expression::BinaryOp { lhs, rhs, op } => todo!(),
         })
+    }
+
+    fn new_node_in(&mut self, parent: NodeId, ty: Item) -> NodeId {
+        self.item_tree.get_mut(parent).unwrap().append(ty).node_id()
+    }
+
+    fn resolve_ident_in(&self, ident: &'static str, in_: NodeId) -> Option<(NodeId, Type)> {
+        for child in self.item_tree.get(in_).unwrap().children() {
+            match child.data() {
+                Item::Global | Item::Block => {}
+                Item::NamedItem { name, ty } => {
+                    if *name == ident {
+                        return Some((child.node_id(), ty.clone()));
+                    }
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -116,38 +152,8 @@ where
 }
 
 #[derive(Debug)]
-struct Scopes<K: Eq + Hash, V> {
-    base: FxHashMap<K, V>,
-    rest: Vec<FxHashMap<K, V>>,
-}
-
-impl<K: Eq + Hash, V> Scopes<K, V> {
-    fn get(&self, k: &K) -> Option<&V> {
-        self.rest
-            .iter()
-            .rev()
-            .find_map(|scope| scope.get(k))
-            .or_else(|| self.base.get(k))
-    }
-
-    fn insert(&mut self, k: K, v: V) {
-        self.rest.last_mut().unwrap_or(&mut self.base).insert(k, v);
-    }
-
-    fn push_empty(&mut self) {
-        self.rest.push(FxHashMap::default());
-    }
-
-    fn pop(&mut self) {
-        self.rest.pop().unwrap();
-    }
-}
-
-impl<K: Eq + Hash, V> Default for Scopes<K, V> {
-    fn default() -> Self {
-        Self {
-            base: FxHashMap::default(),
-            rest: vec![],
-        }
-    }
+enum Item {
+    Global,
+    Block,
+    NamedItem { name: &'static str, ty: Type },
 }

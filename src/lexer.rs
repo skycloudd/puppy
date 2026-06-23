@@ -41,6 +41,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
                 "if" => Token::Kw(Kw::If),
                 "elif" => Token::Kw(Kw::Elif),
                 "else" => Token::Kw(Kw::Else),
+                "return" => Token::Kw(Kw::Return),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),

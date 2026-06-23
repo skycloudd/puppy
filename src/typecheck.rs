@@ -1,13 +1,13 @@
 use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
-        Ident, Span, Spanned,
-        ast::{Ast, Expression, Statement},
-        typed::{self, FunctionType, Type, TypedExpression},
+        Span, Spanned,
+        ast::{Ast, Expression, ParsedType, Statement},
+        typed::{self, Type, TypedExpression},
     },
 };
 use chumsky::span::SpanWrap as _;
-use slab_tree::{NodeId, Tree, TreeBuilder};
+use slab_tree::{NodeId, Tree};
 
 pub fn typecheck(ast: Ast) -> (typed::Ast, Vec<Diagnostic>) {
     let mut typechecker = Typechecker::new();
@@ -25,12 +25,12 @@ struct Typechecker {
 impl Typechecker {
     fn new() -> Self {
         let mut item_tree = Tree::new();
-        let current_node = item_tree.set_root(Item::Global);
+        let root = item_tree.set_root(Item::Global);
 
         Self {
             diagnostics: vec![],
             item_tree,
-            current_node,
+            current_node: root,
         }
     }
 
@@ -60,16 +60,48 @@ impl Typechecker {
                 params,
                 return_type,
                 body,
-                return_expr,
-            } => todo!(),
+            } => {
+                let outer = self.current_node;
+                self.current_node = self.new_node_in(self.current_node, Item::Block);
+
+                let params = map(params, |params| {
+                    params
+                        .into_iter()
+                        .map(|param| (param.0, self.resolve_type(param.1)))
+                        .collect()
+                });
+
+                let return_type = return_type.map(|return_type| self.resolve_type(return_type));
+
+                let body = self.statements(body);
+
+                self.current_node = outer;
+
+                typed::Statement::Function {
+                    name,
+                    params,
+                    return_type,
+                    body,
+                }
+            }
             Statement::Block(statements) => {
+                let outer = self.current_node;
                 self.current_node = self.new_node_in(self.current_node, Item::Block);
 
                 let statements = self.statements(statements);
 
+                self.current_node = outer;
+
                 typed::Statement::Block(statements)
             }
-            Statement::Conditional { if_, elifs, else_ } => todo!(),
+            Statement::Conditional { if_, elifs, else_ } => typed::Statement::Conditional {
+                if_: todo!(),
+                elifs: todo!(),
+                else_: todo!(),
+            },
+            Statement::Return(expr) => {
+                typed::Statement::Return(expr.map(|expr| self.expression(expr)))
+            }
         })
     }
 
@@ -122,18 +154,41 @@ impl Typechecker {
     }
 
     fn resolve_ident_in(&self, ident: &'static str, in_: NodeId) -> Option<(NodeId, Type)> {
-        for child in self.item_tree.get(in_).unwrap().children() {
-            match child.data() {
-                Item::Global | Item::Block => {}
-                Item::Named { name, ty } => {
-                    if *name == ident {
-                        return Some((child.node_id(), ty.clone()));
-                    }
-                }
-            }
-        }
+        let found_items = self
+            .item_tree
+            .get(in_)
+            .unwrap()
+            .traverse_level_order()
+            .filter_map(|child| match child.data() {
+                Item::Global | Item::Block => None,
+                Item::Named { name, ty } => (*name == ident).then(|| (child.node_id(), ty.clone())),
+            })
+            .collect::<Vec<_>>();
 
-        None
+        if found_items.len() == 1 {
+            found_items.first().cloned()
+        } else {
+            panic!("error");
+            None
+        }
+    }
+
+    fn resolve_type(&self, ty: Spanned<ParsedType>) -> Spanned<Type> {
+        map(ty, |ty| match ty {
+            ParsedType::Path(path) => todo!(),
+            ParsedType::Function {
+                params,
+                return_type,
+            } => Type::Function {
+                params: map(params, |params| {
+                    params
+                        .into_iter()
+                        .map(|param| self.resolve_type(param))
+                        .collect()
+                }),
+                return_type: boxed(self.resolve_type(unboxed(return_type))),
+            },
+        })
     }
 }
 
@@ -149,6 +204,14 @@ where
     F: FnOnce(T, Span) -> U,
 {
     f(spanned.inner, spanned.span).with_span(spanned.span)
+}
+
+fn boxed<T>(spanned: Spanned<T>) -> Spanned<Box<T>> {
+    map(spanned, Box::new)
+}
+
+fn unboxed<T>(spanned: Spanned<Box<T>>) -> Spanned<T> {
+    map(spanned, |spanned| *spanned)
 }
 
 #[derive(Debug)]

@@ -2,7 +2,7 @@ use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
         Span, Spanned,
-        ast::{Ast, BinaryOp, ConditionalBranch, Expression, Path, PostfixOp, PrefixOp, Statement},
+        ast::{Ast, BinaryOp, Expression, ParsedType, Path, PostfixOp, PrefixOp, Statement},
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
@@ -65,7 +65,13 @@ fn statement_parser<'tokens>()
 
         let conditional = conditional_parser(statement).boxed();
 
-        choice((print, function, block, conditional)).boxed()
+        let return_ = just(Token::Kw(Kw::Return))
+            .ignore_then(expression_parser().spanned().or_not())
+            .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
+            .map(Statement::Return)
+            .boxed();
+
+        choice((print, function, block, conditional, return_)).boxed()
     })
 }
 
@@ -76,7 +82,7 @@ fn function_parser<'tokens>(
 
     let params = ident
         .then_ignore(just(Token::Ctrl(Ctrl::Colon)))
-        .then(path_parser().spanned())
+        .then(type_parser().spanned())
         .separated_by(just(Token::Ctrl(Ctrl::Comma)))
         .allow_trailing()
         .collect()
@@ -91,7 +97,6 @@ fn function_parser<'tokens>(
         .repeated()
         .collect()
         .spanned()
-        .then(expression_parser().spanned().or_not())
         .nested_in(select_ref! {
             Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
         })
@@ -102,17 +107,16 @@ fn function_parser<'tokens>(
         .then(params)
         .then(
             just(Token::Ctrl(Ctrl::Arrow))
-                .ignore_then(path_parser().spanned())
+                .ignore_then(type_parser().spanned())
                 .or_not(),
         )
         .then(body)
         .map(
-            |(((name, params), return_type), (body, return_expr))| Statement::Function {
+            |(((name, params), return_type), body)| Statement::Function {
                 name,
                 params,
                 return_type,
                 body,
-                return_expr,
             },
         )
         .boxed()
@@ -136,13 +140,13 @@ fn conditional_parser<'tokens>(
     just(Token::Kw(Kw::If))
         .ignore_then(expression_parser().spanned())
         .then(block.clone())
-        .map(|(condition, block)| ConditionalBranch { condition, block })
+        .map(|(condition, block)| (condition, block))
         .spanned()
         .then(
             just(Token::Kw(Kw::Elif))
                 .ignore_then(expression_parser().spanned())
                 .then(block.clone())
-                .map(|(condition, block)| ConditionalBranch { condition, block })
+                .map(|(condition, block)| (condition, block))
                 .spanned()
                 .repeated()
                 .collect(),
@@ -317,4 +321,13 @@ fn path_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Path, Pa
         .at_least(1)
         .collect()
         .map(Path)
+}
+
+fn type_parser<'tokens>()
+-> impl Parser<'tokens, ParserInput<'tokens>, ParsedType, ParserError<'tokens>> {
+    let path = path_parser().map(ParsedType::Path);
+
+    let function = todo();
+
+    choice((path, function))
 }

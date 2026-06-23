@@ -25,6 +25,7 @@ pub enum Kw {
     If,
     Elif,
     Else,
+    Return,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,6 +86,7 @@ impl fmt::Display for Kw {
             Self::If => write!(f, "if"),
             Self::Elif => write!(f, "elif"),
             Self::Else => write!(f, "else"),
+            Self::Return => write!(f, "return"),
         }
     }
 }

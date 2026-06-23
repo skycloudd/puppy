@@ -13,23 +13,17 @@ pub enum Statement {
     Print(Spanned<TypedExpression>),
     Function {
         name: Spanned<Ident>,
-        params: Spanned<Vec<(Spanned<Ident>, Spanned<Path>)>>,
-        return_type: Option<Spanned<Path>>,
+        params: Spanned<Vec<(Spanned<Ident>, Spanned<Type>)>>,
+        return_type: Option<Spanned<Type>>,
         body: Spanned<Statements>,
-        return_expr: Option<Spanned<TypedExpression>>,
     },
     Block(Spanned<Statements>),
     Conditional {
-        if_: Spanned<ConditionalBranch>,
-        elifs: Vec<Spanned<ConditionalBranch>>,
+        if_: Spanned<(Spanned<TypedExpression>, Spanned<Statements>)>,
+        elifs: Vec<Spanned<(Spanned<TypedExpression>, Spanned<Statements>)>>,
         else_: Option<Spanned<Statements>>,
     },
-}
-
-#[derive(Clone, Debug)]
-pub struct ConditionalBranch {
-    pub condition: Spanned<TypedExpression>,
-    pub block: Spanned<Statements>,
+    Return(Option<Spanned<TypedExpression>>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,13 +31,10 @@ pub enum Type {
     Error,
     Bool,
     Int,
-    Function(Box<FunctionType>),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FunctionType {
-    pub params: Vec<Spanned<Type>>,
-    pub returns: Spanned<Type>,
+    Function {
+        params: Spanned<Vec<Spanned<Self>>>,
+        return_type: Spanned<Box<Self>>,
+    },
 }
 
 #[derive(Clone, Debug)]

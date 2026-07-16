@@ -1,1 +1,5 @@
-print this_variable_doesnt_exist;
+// let a x = max 3 4
+// let b = 24
+// let _ = a 3 + b
+
+1

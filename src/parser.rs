@@ -1,8 +1,8 @@
 use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
-        Span, Spanned,
-        ast::{Ast, BinaryOp, Expression, ParsedType, Path, PostfixOp, PrefixOp, Statement},
+        Ident, Span, Spanned,
+        ast::{Ast, Expression, InfixOp, ModuleExpression, PostfixOp, PrefixOp},
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
@@ -31,129 +31,29 @@ pub fn parser(tokens: &Tokens) -> (Option<Ast>, Vec<Diagnostic>) {
 }
 
 fn ast_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ast, ParserError<'tokens>> {
-    statement_parser()
+    mod_expression_parser()
         .spanned()
         .repeated()
         .collect()
-        .spanned()
-        .map(|statements| Ast { statements })
+        .map(Ast)
         .boxed()
 }
 
-fn statement_parser<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    recursive(|statement| {
-        let print = just(Token::Kw(Kw::Print))
-            .ignore_then(expression_parser().spanned())
-            .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
-            .map(Statement::Print)
-            .boxed();
-
-        let function = function_parser(statement.clone()).boxed();
-
-        let block = statement
-            .clone()
-            .spanned()
-            .repeated()
-            .collect()
-            .nested_in(select_ref! {
-                Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
-            })
-            .spanned()
-            .map(Statement::Block)
-            .boxed();
-
-        let conditional = conditional_parser(statement).boxed();
-
-        let return_ = just(Token::Kw(Kw::Return))
-            .ignore_then(expression_parser().spanned().or_not())
-            .then_ignore(just(Token::Ctrl(Ctrl::Semicolon)))
-            .map(Statement::Return)
-            .boxed();
-
-        choice((print, function, block, conditional, return_)).boxed()
-    })
-}
-
-fn function_parser<'tokens>(
-    statement: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> + 'tokens,
-) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    let ident = select! { Token::Ident(ident) => ident }.spanned();
-
-    let params = ident
-        .then_ignore(just(Token::Ctrl(Ctrl::Colon)))
-        .then(type_parser().spanned())
-        .separated_by(just(Token::Ctrl(Ctrl::Comma)))
-        .allow_trailing()
-        .collect()
-        .nested_in(select_ref! {
-            Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
-        })
-        .spanned()
+fn mod_expression_parser<'tokens>()
+-> impl Parser<'tokens, ParserInput<'tokens>, ModuleExpression, ParserError<'tokens>> {
+    let let_ = just(Token::Kw(Kw::Let))
+        .ignore_then(ident_parser().spanned())
+        .then(ident_parser().spanned().repeated().collect())
+        .then_ignore(just(Token::Ctrl(Ctrl::Equals)))
+        .then(expression_parser().spanned())
+        .map(|((name, params), expr)| ModuleExpression::Let { name, params, expr })
         .boxed();
 
-    let body = statement
+    let expr = expression_parser()
         .spanned()
-        .repeated()
-        .collect()
-        .spanned()
-        .nested_in(select_ref! {
-            Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
-        })
-        .boxed();
+        .map(ModuleExpression::Expression);
 
-    just(Token::Kw(Kw::Fn))
-        .ignore_then(ident)
-        .then(params)
-        .then(
-            just(Token::Ctrl(Ctrl::Arrow))
-                .ignore_then(type_parser().spanned())
-                .or_not(),
-        )
-        .then(body)
-        .map(
-            |(((name, params), return_type), body)| Statement::Function {
-                name,
-                params,
-                return_type,
-                body,
-            },
-        )
-        .boxed()
-}
-
-fn conditional_parser<'tokens>(
-    statement: impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>>
-    + Clone
-    + 'tokens,
-) -> impl Parser<'tokens, ParserInput<'tokens>, Statement, ParserError<'tokens>> {
-    let block = statement
-        .spanned()
-        .repeated()
-        .collect()
-        .nested_in(select_ref! {
-            Token::CurlyBraces(inner) = e => inner.0.as_slice().split_token_span(e.span())
-        })
-        .spanned()
-        .boxed();
-
-    just(Token::Kw(Kw::If))
-        .ignore_then(expression_parser().spanned())
-        .then(block.clone())
-        .map(|(condition, block)| (condition, block))
-        .spanned()
-        .then(
-            just(Token::Kw(Kw::Elif))
-                .ignore_then(expression_parser().spanned())
-                .then(block.clone())
-                .map(|(condition, block)| (condition, block))
-                .spanned()
-                .repeated()
-                .collect(),
-        )
-        .then(just(Token::Kw(Kw::Else)).ignore_then(block).or_not())
-        .map(|((if_, elifs), else_)| Statement::Conditional { if_, elifs, else_ })
-        .boxed()
+    choice((expr, let_))
 }
 
 fn expression_parser<'tokens>()
@@ -166,52 +66,50 @@ fn expression_parser<'tokens>()
             })
             .boxed();
 
-        let path = path_parser().map(Expression::Path);
-
         let simple = select! {
             Token::Int(value) => Expression::Int(value),
             Token::Bool(value) => Expression::Bool(value),
+            Token::Ident(ident) => Expression::Ident(ident),
         }
         .boxed();
 
-        let atom = choice((parentheses, simple, path)).boxed();
+        let let_ = just(Token::Kw(Kw::Let))
+            .ignore_then(ident_parser().spanned())
+            .then(ident_parser().spanned().repeated().collect())
+            .then_ignore(just(Token::Ctrl(Ctrl::Equals)))
+            .then(expression.clone().map(Box::new).spanned())
+            .then_ignore(just(Token::Kw(Kw::In)))
+            .then(expression.map(Box::new).spanned())
+            .map(|(((name, params), expr), in_)| Expression::Let {
+                name,
+                params,
+                expr,
+                in_,
+            })
+            .boxed();
 
-        let postfix_op = choice((
-            just(Token::Ctrl(Ctrl::DoublePlus)).to(PostfixOp::Inc),
-            just(Token::Ctrl(Ctrl::DoubleMinus)).to(PostfixOp::Dec),
-            just(Token::Ctrl(Ctrl::Dot))
-                .ignore_then(select! { Token::Ident(ident) => ident }.spanned())
-                .map(PostfixOp::FieldAccess),
-            expression
-                .spanned()
-                .separated_by(just(Token::Ctrl(Ctrl::Comma)))
-                .allow_trailing()
-                .collect()
-                .nested_in(select_ref! {
-                    Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
-                })
-                .spanned()
-                .map(PostfixOp::FunctionCall),
-        ))
+        let atom = choice((parentheses, let_, simple))
+            .map(Box::new)
+            .spanned()
+            .boxed();
+
+        let postfix_op = choice((just(Token::Ctrl(Ctrl::Dot))
+            .ignore_then(select! { Token::Ident(ident) => ident }.spanned())
+            .map(PostfixOp::FieldAccess),))
         .spanned()
         .boxed();
 
-        let postfix = atom
-            .map(Box::new)
-            .spanned()
-            .foldl(
-                postfix_op.repeated(),
-                |expr: Spanned<Box<Expression>>, op: Spanned<PostfixOp>| {
-                    let span = expr.span.union(op.span);
+        let postfix = choice((atom.foldl(
+            postfix_op.repeated(),
+            |expr: Spanned<Box<Expression>>, op: Spanned<PostfixOp>| {
+                let span = expr.span.union(op.span);
 
-                    Box::new(Expression::PostfixOp { expr, op }).with_span(span)
-                },
-            )
-            .boxed();
+                Box::new(Expression::PostfixOp { expr, op }).with_span(span)
+            },
+        ),))
+        .boxed();
 
         let prefix_op = choice((
-            just(Token::Ctrl(Ctrl::DoublePlus)).to(PrefixOp::Inc),
-            just(Token::Ctrl(Ctrl::DoubleMinus)).to(PrefixOp::Dec),
             just(Token::Ctrl(Ctrl::Plus)).to(PrefixOp::Pos),
             just(Token::Ctrl(Ctrl::Minus)).to(PrefixOp::Neg),
             just(Token::Ctrl(Ctrl::Bang)).to(PrefixOp::LogicalNot),
@@ -232,10 +130,10 @@ fn expression_parser<'tokens>()
             )
             .boxed();
 
-        macro_rules! binary_op {
-            ($prev:expr, $($ctrl:expr => $bin_op:expr),+ $(,)?) => {
+        macro_rules! infix_op {
+            ($prev:expr, $($ctrl:expr => $infix_op:expr),+ $(,)?) => {
                 {
-                    let op = choice(($(just(Token::Ctrl($ctrl)).to($bin_op),)+))
+                    let op = choice(($(just(Token::Ctrl($ctrl)).to($infix_op),)+))
                         .spanned()
                         .boxed();
 
@@ -243,91 +141,101 @@ fn expression_parser<'tokens>()
                         .clone()
                         .foldl(op.then($prev).repeated(), |lhs, (op, rhs)| {
                             let span = lhs.span.union(rhs.span);
-                            Box::new(Expression::BinaryOp { lhs, rhs, op }).with_span(span)
+                            Box::new(Expression::InfixOp { lhs, rhs, op }).with_span(span)
                         })
                         .boxed()
                 }
             };
         }
 
-        let factor = binary_op!(
+        let factor = infix_op!(
             prefix,
-            Ctrl::Star => BinaryOp::Mul,
-            Ctrl::Slash => BinaryOp::Div,
-            Ctrl::Percent => BinaryOp::Modulo,
+            Ctrl::Star => InfixOp::Mul,
+            Ctrl::Slash => InfixOp::Div,
+            Ctrl::Percent => InfixOp::Modulo,
         );
 
-        let sum = binary_op!(
+        let sum = infix_op!(
             factor,
-            Ctrl::Plus => BinaryOp::Add,
-            Ctrl::Minus => BinaryOp::Sub,
+            Ctrl::Plus => InfixOp::Add,
+            Ctrl::Minus => InfixOp::Sub,
         );
 
-        let bitshift = binary_op!(
+        let bitshift = infix_op!(
             sum,
-            Ctrl::DoubleLt => BinaryOp::LeftBitshift,
-            Ctrl::DoubleGt => BinaryOp::RightBitshift,
+            Ctrl::DoubleLt => InfixOp::LeftBitshift,
+            Ctrl::DoubleGt => InfixOp::RightBitshift,
         );
 
-        let relational_less_greater = binary_op!(
+        let relational_less_greater = infix_op!(
             bitshift,
-            Ctrl::LessThan => BinaryOp::LessThan,
-            Ctrl::GreaterThan => BinaryOp::GreaterThan,
-            Ctrl::LessThanEquals => BinaryOp::LessThanEquals,
-            Ctrl::GreaterThanEquals => BinaryOp::GreaterThanEquals
+            Ctrl::LessThan => InfixOp::LessThan,
+            Ctrl::GreaterThan => InfixOp::GreaterThan,
+            Ctrl::LessThanEquals => InfixOp::LessThanEquals,
+            Ctrl::GreaterThanEquals => InfixOp::GreaterThanEquals
         );
 
-        let relational_equal = binary_op!(
+        let relational_equal = infix_op!(
             relational_less_greater,
-            Ctrl::DoubleEquals => BinaryOp::Equal,
-            Ctrl::NotEquals => BinaryOp::NotEqual,
+            Ctrl::DoubleEquals => InfixOp::Equal,
+            Ctrl::NotEquals => InfixOp::NotEqual,
         );
 
-        let bitwise_and = binary_op!(
+        let bitwise_and = infix_op!(
             relational_equal,
-            Ctrl::Ampersand => BinaryOp::BitwiseAnd,
+            Ctrl::Ampersand => InfixOp::BitwiseAnd,
         );
 
-        let bitwise_exclusive_or = binary_op!(
+        let bitwise_exclusive_or = infix_op!(
             bitwise_and,
-            Ctrl::Caret => BinaryOp::BitwiseXor,
+            Ctrl::Caret => InfixOp::BitwiseXor,
         );
 
-        let bitwise_or = binary_op!(
+        let bitwise_or = infix_op!(
             bitwise_exclusive_or,
-            Ctrl::Pipe => BinaryOp::BitwiseOr,
+            Ctrl::Pipe => InfixOp::BitwiseOr,
         );
 
-        let logical_and = binary_op!(
+        let logical_and = infix_op!(
             bitwise_or,
-            Ctrl::DoubleAmpersand => BinaryOp::LogicalAnd,
+            Ctrl::DoubleAmpersand => InfixOp::LogicalAnd,
         );
 
-        let logical_or = binary_op!(
+        let logical_or = infix_op!(
             logical_and,
-            Ctrl::DoublePipe => BinaryOp::LogicalOr,
+            Ctrl::DoublePipe => InfixOp::LogicalOr,
         );
 
-        logical_or.map(|expr| *expr.inner).boxed()
+        let call = logical_or
+            .clone()
+            .foldl(logical_or.repeated(), |callee, arg| {
+                let span = callee.span.union(arg.span);
+                Box::new(Expression::Call { callee, arg }).with_span(span)
+            })
+            .boxed();
+
+        let semicolon = call
+            .clone()
+            .foldl(
+                just(Token::Ctrl(Ctrl::Semicolon))
+                    .spanned()
+                    .then(call.or_not())
+                    .repeated(),
+                |lhs, (op, rhs)| {
+                    let span = lhs.span.union(rhs.as_ref().map_or(op.span, |rhs| rhs.span));
+                    Box::new(Expression::Semicolon(lhs, rhs)).with_span(span)
+                },
+            )
+            .boxed();
+
+        semicolon.map(|expr| *expr.inner)
     })
     .boxed()
 }
 
-fn path_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Path, ParserError<'tokens>>
+fn ident_parser<'tokens>() -> impl Parser<'tokens, ParserInput<'tokens>, Ident, ParserError<'tokens>>
 {
-    select! { Token::Ident(ident) => ident }
-        .spanned()
-        .separated_by(just(Token::Ctrl(Ctrl::DoubleColon)))
-        .at_least(1)
-        .collect()
-        .map(Path)
-}
-
-fn type_parser<'tokens>()
--> impl Parser<'tokens, ParserInput<'tokens>, ParsedType, ParserError<'tokens>> {
-    let path = path_parser().map(ParsedType::Path);
-
-    let function = todo();
-
-    choice((path, function))
+    select! {
+        Token::Ident(ident) => ident
+    }
 }

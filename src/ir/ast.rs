@@ -2,36 +2,15 @@ use crate::ir::{Ident, Spanned};
 use num_bigint::BigUint;
 
 #[derive(Clone, Debug)]
-pub struct Ast {
-    pub statements: Spanned<Statements>,
-}
-
-type Statements = Vec<Spanned<Statement>>;
+pub struct Ast(pub Vec<Spanned<ModuleExpression>>);
 
 #[derive(Clone, Debug)]
-pub enum Statement {
-    Print(Spanned<Expression>),
-    Function {
+pub enum ModuleExpression {
+    Expression(Spanned<Expression>),
+    Let {
         name: Spanned<Ident>,
-        params: Spanned<Vec<(Spanned<Ident>, Spanned<ParsedType>)>>,
-        return_type: Option<Spanned<ParsedType>>,
-        body: Spanned<Statements>,
-    },
-    Block(Spanned<Statements>),
-    Conditional {
-        if_: Spanned<(Spanned<Expression>, Spanned<Statements>)>,
-        elifs: Vec<Spanned<(Spanned<Expression>, Spanned<Statements>)>>,
-        else_: Option<Spanned<Statements>>,
-    },
-    Return(Option<Spanned<Expression>>),
-}
-
-#[derive(Clone, Debug)]
-pub enum ParsedType {
-    Path(Path),
-    Function {
-        params: Spanned<Vec<Spanned<Self>>>,
-        return_type: Spanned<Box<Self>>,
+        params: Vec<Spanned<Ident>>,
+        expr: Spanned<Expression>,
     },
 }
 
@@ -39,7 +18,18 @@ pub enum ParsedType {
 pub enum Expression {
     Int(BigUint),
     Bool(bool),
-    Path(Path),
+    Ident(Ident),
+    Let {
+        name: Spanned<Ident>,
+        params: Vec<Spanned<Ident>>,
+        expr: Spanned<Box<Self>>,
+        in_: Spanned<Box<Self>>,
+    },
+    Call {
+        callee: Spanned<Box<Self>>,
+        arg: Spanned<Box<Self>>,
+    },
+    Semicolon(Spanned<Box<Self>>, Option<Spanned<Box<Self>>>),
     PrefixOp {
         expr: Spanned<Box<Self>>,
         op: Spanned<PrefixOp>,
@@ -48,20 +38,15 @@ pub enum Expression {
         expr: Spanned<Box<Self>>,
         op: Spanned<PostfixOp>,
     },
-    BinaryOp {
+    InfixOp {
         lhs: Spanned<Box<Self>>,
         rhs: Spanned<Box<Self>>,
-        op: Spanned<BinaryOp>,
+        op: Spanned<InfixOp>,
     },
 }
 
-#[derive(Clone, Debug)]
-pub struct Path(pub Vec<Spanned<Ident>>);
-
 #[derive(Clone, Copy, Debug)]
 pub enum PrefixOp {
-    Inc,
-    Dec,
     Pos,
     Neg,
     LogicalNot,
@@ -70,14 +55,11 @@ pub enum PrefixOp {
 
 #[derive(Clone, Debug)]
 pub enum PostfixOp {
-    Inc,
-    Dec,
     FieldAccess(Spanned<Ident>),
-    FunctionCall(Spanned<Vec<Spanned<Expression>>>),
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum BinaryOp {
+pub enum InfixOp {
     Mul,
     Div,
     Modulo,

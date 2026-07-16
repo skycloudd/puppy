@@ -36,12 +36,8 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
 
         let kw_ident = text::ascii::ident()
             .map(|ident: &str| match ident {
-                "print" => Token::Kw(Kw::Print),
-                "fn" => Token::Kw(Kw::Fn),
-                "if" => Token::Kw(Kw::If),
-                "elif" => Token::Kw(Kw::Elif),
-                "else" => Token::Kw(Kw::Else),
-                "return" => Token::Kw(Kw::Return),
+                "let" => Token::Kw(Kw::Let),
+                "in" => Token::Kw(Kw::In),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),
@@ -49,8 +45,6 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .boxed();
 
         let ctrl_double = choice((
-            just("++").to(Ctrl::DoublePlus),
-            just("--").to(Ctrl::DoubleMinus),
             just("<<").to(Ctrl::DoubleLt),
             just(">>").to(Ctrl::DoubleGt),
             just("->").to(Ctrl::Arrow),

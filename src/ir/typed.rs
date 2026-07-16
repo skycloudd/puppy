@@ -1,39 +1,19 @@
-use crate::ir::{Ident, Spanned, ast::Path};
+use crate::ir::{
+    Ident, Spanned,
+    ast::{InfixOp, PostfixOp, PrefixOp},
+};
 use num_bigint::BigUint;
 
 #[derive(Clone, Debug)]
-pub struct Ast {
-    pub statements: Spanned<Statements>,
-}
-
-type Statements = Vec<Spanned<Statement>>;
+pub struct Ast(pub Vec<Spanned<ModuleExpression>>);
 
 #[derive(Clone, Debug)]
-pub enum Statement {
-    Print(Spanned<TypedExpression>),
-    Function {
+pub enum ModuleExpression {
+    Expression(Spanned<TypedExpression>),
+    Let {
         name: Spanned<Ident>,
-        params: Spanned<Vec<(Spanned<Ident>, Spanned<Type>)>>,
-        return_type: Option<Spanned<Type>>,
-        body: Spanned<Statements>,
-    },
-    Block(Spanned<Statements>),
-    Conditional {
-        if_: Spanned<(Spanned<TypedExpression>, Spanned<Statements>)>,
-        elifs: Vec<Spanned<(Spanned<TypedExpression>, Spanned<Statements>)>>,
-        else_: Option<Spanned<Statements>>,
-    },
-    Return(Option<Spanned<TypedExpression>>),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Type {
-    Error,
-    Bool,
-    Int,
-    Function {
-        params: Spanned<Vec<Spanned<Self>>>,
-        return_type: Spanned<Box<Self>>,
+        params: Vec<Spanned<Ident>>,
+        expr: Spanned<TypedExpression>,
     },
 }
 
@@ -44,61 +24,39 @@ pub struct TypedExpression {
 }
 
 #[derive(Clone, Debug)]
-pub enum Expression {
-    Int(BigUint),
-    Bool(bool),
-    Path(Path),
-    PrefixOp {
-        expr: Spanned<Box<TypedExpression>>,
-        op: Spanned<PrefixOp>,
-    },
-    PostfixOp {
-        expr: Spanned<Box<TypedExpression>>,
-        op: Spanned<PostfixOp>,
-    },
-    BinaryOp {
-        lhs: Spanned<Box<TypedExpression>>,
-        rhs: Spanned<Box<TypedExpression>>,
-        op: Spanned<BinaryOp>,
-    },
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum PrefixOp {
-    Inc,
-    Dec,
-    Pos,
-    Neg,
-    LogicalNot,
-    BitwiseNot,
+pub enum Type {
+    Int,
+    Bool,
+    Function(Box<Self>, Box<Self>),
 }
 
 #[derive(Clone, Debug)]
-pub enum PostfixOp {
-    Inc,
-    Dec,
-    FieldAccess(Spanned<Ident>),
-    FunctionCall(Spanned<Vec<Spanned<TypedExpression>>>),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum BinaryOp {
-    Mul,
-    Div,
-    Modulo,
-    Add,
-    Sub,
-    LeftBitshift,
-    RightBitshift,
-    LessThan,
-    GreaterThan,
-    LessThanEquals,
-    GreaterThanEquals,
-    Equal,
-    NotEqual,
-    BitwiseAnd,
-    BitwiseXor,
-    BitwiseOr,
-    LogicalAnd,
-    LogicalOr,
+pub enum Expression {
+    Int(BigUint),
+    Bool(bool),
+    Ident(Ident),
+    Let {
+        name: Spanned<Ident>,
+        params: Vec<Spanned<Ident>>,
+        expr: Spanned<Box<Self>>,
+        in_: Spanned<Box<Self>>,
+    },
+    Call {
+        callee: Spanned<Box<Self>>,
+        arg: Spanned<Box<Self>>,
+    },
+    Semicolon(Spanned<Box<Self>>, Option<Spanned<Box<Self>>>),
+    PrefixOp {
+        expr: Spanned<Box<Self>>,
+        op: Spanned<PrefixOp>,
+    },
+    PostfixOp {
+        expr: Spanned<Box<Self>>,
+        op: Spanned<PostfixOp>,
+    },
+    InfixOp {
+        lhs: Spanned<Box<Self>>,
+        rhs: Spanned<Box<Self>>,
+        op: Spanned<InfixOp>,
+    },
 }

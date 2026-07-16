@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-camino = "1.2.2"
+camino = "1.2.4"
 chumsky = "0.13.0"
-clap = { version = "4.6.1", features = ["derive"] }
+clap = { version = "4.6.2", features = ["derive"] }
 codespan-reporting = "0.13.1"
 lasso = { version = "0.7.3", features = ["multi-threaded"] }
-num-bigint = "0.4.6"
-rustc-hash = "2.1.2"
-slab_tree = "0.3.2"
+num-bigint = "0.5.1"
+polytype = { version = "7.0.1", default-features = false }
+rustc-hash = "2.1.3"
 
 [lints.clippy]
 absolute_paths = "warn"
@@ -26,7 +26,7 @@ field_scoped_visibility_modifiers = "warn"
 if_then_some_else_none = "warn"
 impl_trait_in_params = "warn"
 infinite_loop = "warn"
-# inline_trait_bounds = "warn" # TODO: added in 1.97.0
+inline_trait_bounds = "warn"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 nursery = { level = "warn", priority = -1 }

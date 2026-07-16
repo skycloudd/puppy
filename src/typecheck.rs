@@ -1,193 +1,77 @@
 use crate::{
-    diagnostics::{Diagnostic, DiagnosticType},
+    diagnostics::Diagnostic,
     ir::{
         Span, Spanned,
-        ast::{Ast, Expression, ParsedType, Statement},
-        typed::{self, Type, TypedExpression},
+        ast::{Ast, Expression, ModuleExpression},
+        typed::{self, TypedExpression},
     },
 };
 use chumsky::span::SpanWrap as _;
-use slab_tree::{NodeId, Tree};
+use polytype::{Context, Name};
 
 pub fn typecheck(ast: Ast) -> (typed::Ast, Vec<Diagnostic>) {
-    let mut typechecker = Typechecker::new();
+    let mut typechecker = Typechecker::default();
 
     (typechecker.ast(ast), typechecker.diagnostics)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Typechecker {
     diagnostics: Vec<Diagnostic>,
-    item_tree: Tree<Item>,
-    current_node: NodeId,
+    ctx: Context,
 }
 
 impl Typechecker {
-    fn new() -> Self {
-        let mut item_tree = Tree::new();
-        let root = item_tree.set_root(Item::Global);
-
-        Self {
-            diagnostics: vec![],
-            item_tree,
-            current_node: root,
-        }
-    }
-
     fn ast(&mut self, ast: Ast) -> typed::Ast {
-        let statements = self.statements(ast.statements);
-
-        typed::Ast { statements }
-    }
-
-    fn statements(
-        &mut self,
-        statements: Spanned<Vec<Spanned<Statement>>>,
-    ) -> Spanned<Vec<Spanned<typed::Statement>>> {
-        map(statements, |statements| {
-            statements
+        typed::Ast(
+            ast.0
                 .into_iter()
-                .map(|statement| self.statement(statement))
-                .collect()
-        })
+                .map(|expr| self.mod_expression(expr))
+                .collect(),
+        )
     }
 
-    fn statement(&mut self, statement: Spanned<Statement>) -> Spanned<typed::Statement> {
-        map(statement, |statement| match statement {
-            Statement::Print(expr) => typed::Statement::Print(self.expression(expr)),
-            Statement::Function {
-                name,
-                params,
-                return_type,
-                body,
-            } => {
-                let outer = self.current_node;
-                self.current_node = self.new_node_in(self.current_node, Item::Block);
-
-                let params = map(params, |params| {
-                    params
-                        .into_iter()
-                        .map(|param| (param.0, self.resolve_type(param.1)))
-                        .collect()
-                });
-
-                let return_type = return_type.map(|return_type| self.resolve_type(return_type));
-
-                let body = self.statements(body);
-
-                self.current_node = outer;
-
-                typed::Statement::Function {
-                    name,
-                    params,
-                    return_type,
-                    body,
-                }
+    fn mod_expression(
+        &mut self,
+        mod_expression: Spanned<ModuleExpression>,
+    ) -> Spanned<typed::ModuleExpression> {
+        map(mod_expression, |mod_expression| match mod_expression {
+            ModuleExpression::Expression(expr) => {
+                typed::ModuleExpression::Expression(self.expression(expr))
             }
-            Statement::Block(statements) => {
-                let outer = self.current_node;
-                self.current_node = self.new_node_in(self.current_node, Item::Block);
-
-                let statements = self.statements(statements);
-
-                self.current_node = outer;
-
-                typed::Statement::Block(statements)
-            }
-            Statement::Conditional { if_, elifs, else_ } => typed::Statement::Conditional {
-                if_: todo!(),
-                elifs: todo!(),
-                else_: todo!(),
-            },
-            Statement::Return(expr) => {
-                typed::Statement::Return(expr.map(|expr| self.expression(expr)))
-            }
+            ModuleExpression::Let { name, params, expr } => todo!(),
         })
     }
 
     fn expression(&mut self, expression: Spanned<Expression>) -> Spanned<TypedExpression> {
-        map_with_span(expression, |expression, span| match expression {
+        map(expression, |expression| match expression {
             Expression::Int(value) => TypedExpression {
                 expr: typed::Expression::Int(value),
-                ty: Type::Int,
+                ty: typed::Type::Int,
             },
             Expression::Bool(value) => TypedExpression {
                 expr: typed::Expression::Bool(value),
-                ty: Type::Bool,
+                ty: typed::Type::Bool,
             },
-            Expression::Path(path) => {
-                let mut current_node = None;
-                let mut current_type = Type::Error;
-
-                for component in &path.0 {
-                    let resolve_in = current_node.unwrap_or(self.current_node);
-
-                    if let Some((node, ty)) = self.resolve_ident_in(component.resolve(), resolve_in)
-                    {
-                        current_node = Some(node);
-                        current_type = ty;
-                    } else {
-                        self.diagnostics
-                            .push(Diagnostic(DiagnosticType::UndefinedName {
-                                name: component.resolve(),
-                                span: component.span,
-                            }));
-
-                        current_type = Type::Error;
-                        break;
-                    }
-                }
+            Expression::Ident(ident) => {
+                let ty = todo!();
 
                 TypedExpression {
-                    expr: typed::Expression::Path(path),
-                    ty: current_type,
+                    expr: typed::Expression::Ident(ident),
+                    ty,
                 }
             }
+            Expression::Let {
+                name,
+                params,
+                expr,
+                in_,
+            } => todo!(),
+            Expression::Call { callee, arg } => todo!(),
+            Expression::Semicolon(spanned, spanned1) => todo!(),
             Expression::PrefixOp { expr, op } => todo!(),
             Expression::PostfixOp { expr, op } => todo!(),
-            Expression::BinaryOp { lhs, rhs, op } => todo!(),
-        })
-    }
-
-    fn new_node_in(&mut self, parent: NodeId, ty: Item) -> NodeId {
-        self.item_tree.get_mut(parent).unwrap().append(ty).node_id()
-    }
-
-    fn resolve_ident_in(&self, ident: &'static str, in_: NodeId) -> Option<(NodeId, Type)> {
-        let found_items = self
-            .item_tree
-            .get(in_)
-            .unwrap()
-            .traverse_level_order()
-            .filter_map(|child| match child.data() {
-                Item::Global | Item::Block => None,
-                Item::Named { name, ty } => (*name == ident).then(|| (child.node_id(), ty.clone())),
-            })
-            .collect::<Vec<_>>();
-
-        if found_items.len() == 1 {
-            found_items.first().cloned()
-        } else {
-            panic!("error");
-            None
-        }
-    }
-
-    fn resolve_type(&self, ty: Spanned<ParsedType>) -> Spanned<Type> {
-        map(ty, |ty| match ty {
-            ParsedType::Path(path) => todo!(),
-            ParsedType::Function {
-                params,
-                return_type,
-            } => Type::Function {
-                params: map(params, |params| {
-                    params
-                        .into_iter()
-                        .map(|param| self.resolve_type(param))
-                        .collect()
-                }),
-                return_type: boxed(self.resolve_type(unboxed(return_type))),
-            },
+            Expression::InfixOp { lhs, rhs, op } => todo!(),
         })
     }
 }
@@ -212,11 +96,4 @@ fn boxed<T>(spanned: Spanned<T>) -> Spanned<Box<T>> {
 
 fn unboxed<T>(spanned: Spanned<Box<T>>) -> Spanned<T> {
     map(spanned, |spanned| *spanned)
-}
-
-#[derive(Debug)]
-enum Item {
-    Global,
-    Block,
-    Named { name: &'static str, ty: Type },
 }

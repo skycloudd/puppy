@@ -20,18 +20,12 @@ pub enum Token {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kw {
-    Print,
-    Fn,
-    If,
-    Elif,
-    Else,
-    Return,
+    Let,
+    In,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ctrl {
-    DoublePlus,
-    DoubleMinus,
     DoubleLt,
     DoubleGt,
     Arrow,
@@ -81,12 +75,8 @@ impl fmt::Display for Token {
 impl fmt::Display for Kw {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Print => write!(f, "print"),
-            Self::Fn => write!(f, "fn"),
-            Self::If => write!(f, "if"),
-            Self::Elif => write!(f, "elif"),
-            Self::Else => write!(f, "else"),
-            Self::Return => write!(f, "return"),
+            Self::Let => write!(f, "let"),
+            Self::In => write!(f, "in"),
         }
     }
 }
@@ -94,8 +84,6 @@ impl fmt::Display for Kw {
 impl fmt::Display for Ctrl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::DoublePlus => write!(f, "++"),
-            Self::DoubleMinus => write!(f, "--"),
             Self::DoubleLt => write!(f, "<<"),
             Self::DoubleGt => write!(f, ">>"),
             Self::Arrow => write!(f, "->"),

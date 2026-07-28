@@ -1,5 +1,8 @@
-// let a x = max 3 4
-// let b = 24
-// let _ = a 3 + b
+// let a x = max 3 4 in
+// let b = 24 in
+// let _ = a 3 + b in
 
-1
+// true && 1 == 2 || 2 + 1 < 2 ;
+
+let a x y z = (x == y) && z in
+a 1 2 true

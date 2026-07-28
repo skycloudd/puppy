@@ -2,7 +2,7 @@ use crate::{
     diagnostics::{Diagnostic, DiagnosticType},
     ir::{
         Ident, Span, Spanned,
-        ast::{Ast, Expression, InfixOp, ModuleExpression, PostfixOp, PrefixOp},
+        ast::{Ast, Expression, InfixOp, ModuleExpression, PrefixOp},
         token::{Ctrl, Kw, Token, Tokens},
     },
 };
@@ -67,6 +67,7 @@ fn expression_parser<'tokens>()
             .boxed();
 
         let simple = select! {
+            Token::Unit => Expression::Unit,
             Token::Int(value) => Expression::Int(value),
             Token::Bool(value) => Expression::Bool(value),
             Token::Ident(ident) => Expression::Ident(ident),
@@ -93,22 +94,6 @@ fn expression_parser<'tokens>()
             .spanned()
             .boxed();
 
-        let postfix_op = choice((just(Token::Ctrl(Ctrl::Dot))
-            .ignore_then(select! { Token::Ident(ident) => ident }.spanned())
-            .map(PostfixOp::FieldAccess),))
-        .spanned()
-        .boxed();
-
-        let postfix = choice((atom.foldl(
-            postfix_op.repeated(),
-            |expr: Spanned<Box<Expression>>, op: Spanned<PostfixOp>| {
-                let span = expr.span.union(op.span);
-
-                Box::new(Expression::PostfixOp { expr, op }).with_span(span)
-            },
-        ),))
-        .boxed();
-
         let prefix_op = choice((
             just(Token::Ctrl(Ctrl::Plus)).to(PrefixOp::Pos),
             just(Token::Ctrl(Ctrl::Minus)).to(PrefixOp::Neg),
@@ -121,7 +106,7 @@ fn expression_parser<'tokens>()
         let prefix = prefix_op
             .repeated()
             .foldr(
-                postfix,
+                atom,
                 |op: Spanned<PrefixOp>, expr: Spanned<Box<Expression>>| {
                     let span = op.span.union(expr.span);
 

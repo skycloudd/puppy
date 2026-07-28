@@ -13,7 +13,6 @@ mod diagnostics;
 mod ir;
 mod lexer;
 mod parser;
-mod typecheck;
 
 pub static RODEO: LazyLock<ThreadedRodeo> = LazyLock::new(ThreadedRodeo::new);
 

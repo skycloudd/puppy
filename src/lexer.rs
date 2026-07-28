@@ -27,6 +27,8 @@ pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) 
 fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span)>, LexerError<'src>>
 {
     recursive(|tokens| {
+        let unit = just("()").to(Token::Unit);
+
         let int = text::int(10)
             .to_slice()
             .from_str()
@@ -124,6 +126,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .boxed();
 
         choice((
+            unit,
             int,
             kw_ident,
             ctrl,

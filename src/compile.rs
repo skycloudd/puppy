@@ -1,4 +1,4 @@
-use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser, typecheck};
+use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser};
 
 pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     let mut errors = vec![];
@@ -18,11 +18,7 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     dbg!(&ast);
 
     if let Some(ast) = ast {
-        let (tc_ast, tc_errors) = typecheck::typecheck(ast);
-
-        errors.extend(tc_errors);
-
-        dbg!(tc_ast);
+        ptree::print_tree(&&ast).unwrap();
     }
 
     errors

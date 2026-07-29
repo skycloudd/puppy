@@ -3,6 +3,7 @@ use crate::{
     ir::{
         Ident,
         ast::{Ast, Expression, ModuleExpression},
+        map,
     },
 };
 
@@ -15,7 +16,7 @@ pub fn interpret(ast: Ast) {
 
 #[derive(Debug, Default)]
 struct Interpreter {
-    vars: Scopes<&'static str, Value>,
+    vars: Scopes,
 }
 
 impl Interpreter {
@@ -35,11 +36,12 @@ impl Interpreter {
                     [] => self.expression(expr.inner),
                     params => Value::Function {
                         params: params.iter().map(|i| i.inner).collect(),
+                        env: self.vars.clone(),
                         body: expr.inner,
                     },
                 };
 
-                self.vars.insert(name.resolve(), value);
+                self.vars.push(map(name, Ident::resolve), value);
             }
         }
     }
@@ -50,13 +52,9 @@ impl Interpreter {
             Expression::Unit => Value::Unit,
             Expression::Int(value) => Value::Int(value),
             Expression::Bool(value) => Value::Bool(value),
-            Expression::Ident(ident) => self.vars.get(&ident.resolve()).unwrap().clone(),
-            Expression::Let {
-                name,
-                params,
-                expr,
-                in_,
-            } => todo!(),
+            Expression::Ident(ident) => self.vars.get(ident.resolve()).unwrap().clone(),
+            Expression::Function { param, body } => todo!(),
+            Expression::Let { name, expr, in_ } => todo!(),
             Expression::Call { callee, arg } => {
                 let callee = self.expression(*callee.inner);
 
@@ -78,13 +76,7 @@ impl Interpreter {
     fn call(&mut self, callee: Value, arg: Value) -> Value {
         match callee {
             Value::Unit | Value::Int(_) | Value::Bool(_) => panic!(),
-            Value::Function { params, body } => {
-                self.vars.push_scope();
-
-                self.vars.pop_scope();
-
-                todo!()
-            }
+            Value::Function { params, env, body } => todo!(),
         }
     }
 }

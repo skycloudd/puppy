@@ -20,9 +20,12 @@ pub enum Expression {
     Int(BigUint),
     Bool(bool),
     Ident(Ident),
+    Function {
+        param: Spanned<Ident>,
+        body: Spanned<Box<Self>>,
+    },
     Let {
         name: Spanned<Ident>,
-        params: Vec<Spanned<Ident>>,
         expr: Spanned<Box<Self>>,
         in_: Spanned<Box<Self>>,
     },
@@ -153,20 +156,12 @@ mod pretty_print {
                     Expression::Int(value) => value.to_string(),
                     Expression::Bool(value) => value.to_string(),
                     Expression::Ident(ident) => ident.resolve().to_owned(),
+                    Expression::Function { param, body: _ } => format!("fn {}", param.resolve()),
                     Expression::Let {
                         name,
-                        params,
                         expr: _,
                         in_: _,
-                    } => format!(
-                        "let {} {}",
-                        name.resolve(),
-                        params
-                            .iter()
-                            .map(|param| param.resolve())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ),
+                    } => format!("let {}", name.resolve()),
                     Expression::Call { callee: _, arg: _ } => "call".to_owned(),
                     Expression::Semicolon(_, _) => ";".to_owned(),
                     Expression::PrefixOp { expr: _, op } => format!("prefix {:?}", op.inner),
@@ -186,12 +181,10 @@ mod pretty_print {
                 | Expression::Int(_)
                 | Expression::Bool(_)
                 | Expression::Ident(_) => vec![],
-                Expression::Let {
-                    name: _,
-                    params: _,
-                    expr,
-                    in_,
-                } => vec![expr.inner.as_ref(), in_.inner.as_ref()],
+                Expression::Function { param: _, body } => vec![body.inner.as_ref()],
+                Expression::Let { name: _, expr, in_ } => {
+                    vec![expr.inner.as_ref(), in_.inner.as_ref()]
+                }
                 Expression::Call { callee, arg } => vec![callee.inner.as_ref(), arg.inner.as_ref()],
                 Expression::Semicolon(lhs, rhs) => {
                     vec![

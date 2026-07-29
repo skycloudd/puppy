@@ -20,3 +20,13 @@ impl Ident {
         Self(RODEO.get_or_intern(ident))
     }
 }
+
+pub fn map<T, U, F>(t: Spanned<T>, f: F) -> Spanned<U>
+where
+    F: FnOnce(T) -> U,
+{
+    Spanned {
+        inner: f(t.inner),
+        span: t.span,
+    }
+}

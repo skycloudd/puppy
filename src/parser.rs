@@ -76,17 +76,11 @@ fn expression_parser<'tokens>()
 
         let let_ = just(Token::Kw(Kw::Let))
             .ignore_then(ident_parser().spanned())
-            .then(ident_parser().spanned().repeated().collect())
             .then_ignore(just(Token::Ctrl(Ctrl::Equals)))
             .then(expression.clone().map(Box::new).spanned())
             .then_ignore(just(Token::Kw(Kw::In)))
             .then(expression.clone().map(Box::new).spanned())
-            .map(|(((name, params), expr), in_)| Expression::Let {
-                name,
-                params,
-                expr,
-                in_,
-            })
+            .map(|((name, expr), in_)| Expression::Let { name, expr, in_ })
             .boxed();
 
         let if_then_else = just(Token::Kw(Kw::If))

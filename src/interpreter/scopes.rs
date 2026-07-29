@@ -1,42 +1,32 @@
-use core::hash::Hash;
-use rustc_hash::FxHashMap;
+use crate::{interpreter::value::Value, ir::Spanned};
 
-#[derive(Debug)]
-pub struct Scopes<K, V> {
-    base: FxHashMap<K, V>,
-    scopes: Vec<FxHashMap<K, V>>,
-}
+#[derive(Clone, Debug, Default)]
+pub struct Scopes(Vec<(Spanned<&'static str>, Value)>);
 
-impl<K: Eq + Hash, V> Scopes<K, V> {
-    pub fn push_scope(&mut self) {
-        self.scopes.push(FxHashMap::default());
+impl Scopes {
+    pub fn push(&mut self, k: Spanned<&'static str>, v: Value) {
+        self.0.push((k, v));
     }
 
-    pub fn pop_scope(&mut self) {
-        self.scopes.pop();
+    pub fn pop(&mut self) {
+        self.0.pop();
     }
 
-    pub fn insert(&mut self, k: K, v: V) {
-        self.scopes
-            .last_mut()
-            .unwrap_or(&mut self.base)
-            .insert(k, v);
-    }
-
-    pub fn get(&self, k: &K) -> Option<&V> {
-        self.scopes
+    pub fn get(&self, k: &'static str) -> Option<&Value> {
+        self.0
             .iter()
             .rev()
-            .find_map(|scope| scope.get(k))
-            .or_else(|| self.base.get(k))
+            .find_map(|v| (v.0.inner == k).then_some(&v.1))
+    }
+
+    pub const fn len(&self) -> ScopeLen {
+        ScopeLen(self.0.len())
+    }
+
+    pub fn truncate(&mut self, len: ScopeLen) {
+        self.0.truncate(len.0);
     }
 }
 
-impl<K, V> Default for Scopes<K, V> {
-    fn default() -> Self {
-        Self {
-            base: FxHashMap::default(),
-            scopes: Vec::default(),
-        }
-    }
-}
+#[derive(Clone, Copy, Debug)]
+pub struct ScopeLen(usize);

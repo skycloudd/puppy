@@ -3,14 +3,14 @@ let test_function a b c =
     print b ;
     print c ;
 
-    //if dog.wraffwrf == 123456789 then
-    //    (2 + 3) * 4 % (5 * 6)
-    //else if dog.arfarff != 235906785267805 then
-    //    meow.good.kitty / true
-    //else if cat.mreoww >= 45789897 then
-    //    pet.the.kitty / false
-    //else
-    //    test_function a 2 + 2 c ;
+    if dog == 123456789 then
+        (2 + 3) * 4 % (5 * 6)
+    else if dog != 235906785267805 then
+        meow / true
+    else if cat >= 45789897 then
+        pet / false
+    else
+        test_function a 2 + 2 c ;
 
     print (a + b) * c
 

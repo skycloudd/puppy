@@ -23,6 +23,9 @@ pub enum Token {
 pub enum Kw {
     Let,
     In,
+    If,
+    Then,
+    Else,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,6 +82,9 @@ impl fmt::Display for Kw {
         match self {
             Self::Let => write!(f, "let"),
             Self::In => write!(f, "in"),
+            Self::If => write!(f, "if"),
+            Self::Then => write!(f, "then"),
+            Self::Else => write!(f, "else"),
         }
     }
 }

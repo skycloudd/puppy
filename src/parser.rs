@@ -80,7 +80,7 @@ fn expression_parser<'tokens>()
             .then_ignore(just(Token::Ctrl(Ctrl::Equals)))
             .then(expression.clone().map(Box::new).spanned())
             .then_ignore(just(Token::Kw(Kw::In)))
-            .then(expression.map(Box::new).spanned())
+            .then(expression.clone().map(Box::new).spanned())
             .map(|(((name, params), expr), in_)| Expression::Let {
                 name,
                 params,
@@ -89,7 +89,24 @@ fn expression_parser<'tokens>()
             })
             .boxed();
 
-        let atom = choice((parentheses, let_, simple))
+        let if_then_else = just(Token::Kw(Kw::If))
+            .ignore_then(expression.clone().map(Box::new).spanned())
+            .then_ignore(just(Token::Kw(Kw::Then)))
+            .then(expression.clone().map(Box::new).spanned())
+            .then(
+                just(Token::Kw(Kw::Else))
+                    .ignore_then(expression.map(Box::new).spanned())
+                    .or_not(),
+            )
+            .map(
+                |((condition, then_branch), else_branch)| Expression::IfThenElse {
+                    condition,
+                    then_branch,
+                    else_branch,
+                },
+            );
+
+        let atom = choice((parentheses, let_, if_then_else, simple))
             .map(Box::new)
             .spanned()
             .boxed();

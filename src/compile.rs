@@ -1,4 +1,4 @@
-use crate::{diagnostics::Diagnostic, lexer::lexer, parser::parser};
+use crate::{diagnostics::Diagnostic, interpreter::interpret, lexer::lexer, parser::parser};
 
 pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     let mut errors = vec![];
@@ -15,10 +15,10 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
             ast
         });
 
-    dbg!(&ast);
-
     if let Some(ast) = ast {
         ptree::print_tree(&&ast).unwrap();
+
+        interpret(ast);
     }
 
     errors

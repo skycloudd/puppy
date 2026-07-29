@@ -10,6 +10,7 @@ use std::{fs::read_to_string, sync::LazyLock};
 
 mod compile;
 mod diagnostics;
+mod interpreter;
 mod ir;
 mod lexer;
 mod parser;

@@ -40,6 +40,11 @@ pub enum Expression {
         rhs: Spanned<Box<Self>>,
         op: Spanned<InfixOp>,
     },
+    IfThenElse {
+        condition: Spanned<Box<Self>>,
+        then_branch: Spanned<Box<Self>>,
+        else_branch: Option<Spanned<Box<Self>>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -166,6 +171,11 @@ mod pretty_print {
                     Expression::Semicolon(_, _) => ";".to_owned(),
                     Expression::PrefixOp { expr: _, op } => format!("prefix {:?}", op.inner),
                     Expression::InfixOp { lhs: _, rhs: _, op } => format!("infix {:?}", op.inner),
+                    Expression::IfThenElse {
+                        condition: _,
+                        then_branch: _,
+                        else_branch: _,
+                    } => "if then else".to_owned(),
                 })
             )
         }
@@ -193,6 +203,19 @@ mod pretty_print {
                 Expression::PrefixOp { expr, op: _ } => vec![expr.inner.as_ref()],
                 Expression::InfixOp { lhs, rhs, op: _ } => {
                     vec![lhs.inner.as_ref(), rhs.inner.as_ref()]
+                }
+                Expression::IfThenElse {
+                    condition,
+                    then_branch: if_branch,
+                    else_branch,
+                } => {
+                    let mut exprs = vec![condition.inner.as_ref(), if_branch.inner.as_ref()];
+
+                    if let Some(else_branch) = else_branch {
+                        exprs.push(else_branch);
+                    }
+
+                    exprs
                 }
             })
         }

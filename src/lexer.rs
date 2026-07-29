@@ -40,6 +40,9 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             .map(|ident: &str| match ident {
                 "let" => Token::Kw(Kw::Let),
                 "in" => Token::Kw(Kw::In),
+                "if" => Token::Kw(Kw::If),
+                "then" => Token::Kw(Kw::Then),
+                "else" => Token::Kw(Kw::Else),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),

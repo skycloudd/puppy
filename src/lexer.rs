@@ -1,5 +1,5 @@
 use crate::{
-    diagnostics::{Diagnostic, DiagnosticType},
+    diagnostics::Diagnostic,
     ir::{
         Ident, Span,
         token::{Ctrl, Kw, Token, Tokens},
@@ -19,7 +19,7 @@ pub fn lexer(source: &str, file_id: usize) -> (Option<Tokens>, Vec<Diagnostic>) 
         tokens.map(Tokens),
         errors
             .into_iter()
-            .map(|error| Diagnostic(DiagnosticType::ParserError(error.into())))
+            .map(|error| Diagnostic::ParserError(error.into()))
             .collect(),
     )
 }
@@ -43,6 +43,7 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
                 "if" => Token::Kw(Kw::If),
                 "then" => Token::Kw(Kw::Then),
                 "else" => Token::Kw(Kw::Else),
+                "fn" => Token::Kw(Kw::Fn),
                 "true" => Token::Bool(true),
                 "false" => Token::Bool(false),
                 _ => Token::Ident(Ident::get_or_intern(ident)),
@@ -70,7 +71,6 @@ fn tokens_parser<'src>() -> impl Parser<'src, LexerInput<'src>, Vec<(Token, Span
             just('/').to(Ctrl::Slash),
             just('%').to(Ctrl::Percent),
             just('.').to(Ctrl::Dot),
-            just('~').to(Ctrl::Tilde),
             just('&').to(Ctrl::Ampersand),
             just('^').to(Ctrl::Caret),
             just('|').to(Ctrl::Pipe),

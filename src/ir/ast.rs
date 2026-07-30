@@ -1,5 +1,6 @@
 use crate::ir::{Ident, Spanned};
-use num_bigint::BigUint;
+use core::fmt;
+use num_bigint::BigInt;
 
 #[derive(Clone, Debug)]
 pub struct Ast(pub Vec<Spanned<ModuleExpression>>);
@@ -9,7 +10,6 @@ pub enum ModuleExpression {
     Expression(Spanned<Expression>),
     Let {
         name: Spanned<Ident>,
-        params: Vec<Spanned<Ident>>,
         expr: Spanned<Expression>,
     },
 }
@@ -17,9 +17,9 @@ pub enum ModuleExpression {
 #[derive(Clone, Debug)]
 pub enum Expression {
     Unit,
-    Int(BigUint),
+    Int(BigInt),
     Bool(bool),
-    Ident(Ident),
+    Ident(Spanned<Ident>),
     Function {
         param: Spanned<Ident>,
         body: Spanned<Box<Self>>,
@@ -54,8 +54,7 @@ pub enum Expression {
 pub enum PrefixOp {
     Pos,
     Neg,
-    LogicalNot,
-    BitwiseNot,
+    Not,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -78,6 +77,49 @@ pub enum InfixOp {
     BitwiseOr,
     LogicalAnd,
     LogicalOr,
+}
+
+impl fmt::Display for PrefixOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Pos => "+",
+                Self::Neg => "-",
+                Self::Not => "!",
+            }
+        )
+    }
+}
+
+impl fmt::Display for InfixOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Mul => "*",
+                Self::Div => "/",
+                Self::Modulo => "%",
+                Self::Add => "+",
+                Self::Sub => "-",
+                Self::LeftBitshift => "<<",
+                Self::RightBitshift => ">>",
+                Self::LessThan => "<",
+                Self::GreaterThan => ">",
+                Self::LessThanEquals => "<=",
+                Self::GreaterThanEquals => ">=",
+                Self::Equal => "==",
+                Self::NotEqual => "!=",
+                Self::BitwiseAnd => "&",
+                Self::BitwiseXor => "^",
+                Self::BitwiseOr => "|",
+                Self::LogicalAnd => "&&",
+                Self::LogicalOr => "||",
+            }
+        )
+    }
 }
 
 mod pretty_print {
@@ -112,31 +154,16 @@ mod pretty_print {
                 "{}",
                 style.paint(match self {
                     ModuleExpression::Expression(_) => "expr".to_owned(),
-                    ModuleExpression::Let {
-                        name,
-                        params,
-                        expr: _,
-                    } => format!(
-                        "let {} {}",
-                        name.resolve(),
-                        params
-                            .iter()
-                            .map(|param| param.resolve())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ),
+                    ModuleExpression::Let { name, expr: _ } => format!("let {}", name.resolve()),
                 })
             )
         }
 
         fn children(&self) -> Cow<'_, [Self::Child]> {
             Cow::from(vec![match &self {
-                ModuleExpression::Expression(expr)
-                | ModuleExpression::Let {
-                    name: _,
-                    params: _,
-                    expr,
-                } => &expr.inner,
+                ModuleExpression::Expression(expr) | ModuleExpression::Let { name: _, expr } => {
+                    &expr.inner
+                }
             }])
         }
     }
@@ -187,11 +214,13 @@ mod pretty_print {
                 }
                 Expression::Call { callee, arg } => vec![callee.inner.as_ref(), arg.inner.as_ref()],
                 Expression::Semicolon(lhs, rhs) => {
-                    vec![
-                        lhs.inner.as_ref(),
-                        rhs.as_ref()
-                            .map_or_else(|| panic!(), |rhs| rhs.inner.as_ref()),
-                    ]
+                    let mut exprs = vec![lhs.inner.as_ref()];
+
+                    if let Some(rhs) = rhs {
+                        exprs.push(rhs);
+                    }
+
+                    exprs
                 }
                 Expression::PrefixOp { expr, op: _ } => vec![expr.inner.as_ref()],
                 Expression::InfixOp { lhs, rhs, op: _ } => {

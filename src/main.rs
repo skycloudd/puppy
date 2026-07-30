@@ -44,7 +44,7 @@ fn write_diagnostics(
     let config = term::Config::default();
 
     for diagnostic in diagnostics {
-        term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic.0.report())?;
+        term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic.report())?;
     }
 
     Ok(())

@@ -1,6 +1,6 @@
 use crate::ir::{Ident, Span};
 use core::fmt;
-use num_bigint::BigUint;
+use num_bigint::BigInt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tokens(pub Vec<(Token, Span)>);
@@ -13,7 +13,7 @@ pub enum Token {
     SquareBrackets(Tokens),
     Ident(Ident),
     Unit,
-    Int(BigUint),
+    Int(BigInt),
     Bool(bool),
     Kw(Kw),
     Ctrl(Ctrl),
@@ -26,6 +26,7 @@ pub enum Kw {
     If,
     Then,
     Else,
+    Fn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -48,7 +49,6 @@ pub enum Ctrl {
     Slash,
     Percent,
     Dot,
-    Tilde,
     Ampersand,
     Caret,
     Pipe,
@@ -85,6 +85,7 @@ impl fmt::Display for Kw {
             Self::If => write!(f, "if"),
             Self::Then => write!(f, "then"),
             Self::Else => write!(f, "else"),
+            Self::Fn => write!(f, "fn"),
         }
     }
 }
@@ -110,7 +111,6 @@ impl fmt::Display for Ctrl {
             Self::Slash => write!(f, "/"),
             Self::Percent => write!(f, "%"),
             Self::Dot => write!(f, "."),
-            Self::Tilde => write!(f, "~"),
             Self::Ampersand => write!(f, "&"),
             Self::Caret => write!(f, "^"),
             Self::Pipe => write!(f, "|"),

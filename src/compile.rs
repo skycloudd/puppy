@@ -18,7 +18,9 @@ pub fn compile(source: &str, file_id: usize) -> Vec<Diagnostic> {
     if let Some(ast) = ast {
         ptree::print_tree(&&ast).unwrap();
 
-        interpret(ast);
+        if let Err(err) = interpret(ast) {
+            errors.push(err);
+        }
     }
 
     errors

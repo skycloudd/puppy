@@ -1,5 +1,5 @@
 use crate::{
-    diagnostics::{Diagnostic, DiagnosticType},
+    diagnostics::Diagnostic,
     ir::{
         Ident, Span, Spanned,
         ast::{Ast, Expression, InfixOp, ModuleExpression, PrefixOp},
@@ -25,7 +25,7 @@ pub fn parser(tokens: &Tokens) -> (Option<Ast>, Vec<Diagnostic>) {
         ast,
         errors
             .into_iter()
-            .map(|error| Diagnostic(DiagnosticType::ParserError(error.into())))
+            .map(|error| Diagnostic::ParserError(error.into()))
             .collect(),
     )
 }
@@ -43,10 +43,9 @@ fn mod_expression_parser<'tokens>()
 -> impl Parser<'tokens, ParserInput<'tokens>, ModuleExpression, ParserError<'tokens>> {
     let let_ = just(Token::Kw(Kw::Let))
         .ignore_then(ident_parser().spanned())
-        .then(ident_parser().spanned().repeated().collect())
         .then_ignore(just(Token::Ctrl(Ctrl::Equals)))
         .then(expression_parser().spanned())
-        .map(|((name, params), expr)| ModuleExpression::Let { name, params, expr })
+        .map(|(name, expr)| ModuleExpression::Let { name, expr })
         .boxed();
 
     let expr = expression_parser()
@@ -64,14 +63,18 @@ fn expression_parser<'tokens>()
             .nested_in(select_ref! {
                 Token::Parentheses(inner) = e => inner.0.as_slice().split_token_span(e.span())
             })
+            .map(Box::new)
+            .spanned()
             .boxed();
 
         let simple = select! {
             Token::Unit => Expression::Unit,
             Token::Int(value) => Expression::Int(value),
             Token::Bool(value) => Expression::Bool(value),
-            Token::Ident(ident) => Expression::Ident(ident),
+            Token::Ident(ident) = e => Expression::Ident(ident.with_span(e.span())),
         }
+        .map(Box::new)
+        .spanned()
         .boxed();
 
         let let_ = just(Token::Kw(Kw::Let))
@@ -81,6 +84,8 @@ fn expression_parser<'tokens>()
             .then_ignore(just(Token::Kw(Kw::In)))
             .then(expression.clone().map(Box::new).spanned())
             .map(|((name, expr), in_)| Expression::Let { name, expr, in_ })
+            .map(Box::new)
+            .spanned()
             .boxed();
 
         let if_then_else = just(Token::Kw(Kw::If))
@@ -89,7 +94,7 @@ fn expression_parser<'tokens>()
             .then(expression.clone().map(Box::new).spanned())
             .then(
                 just(Token::Kw(Kw::Else))
-                    .ignore_then(expression.map(Box::new).spanned())
+                    .ignore_then(expression.clone().map(Box::new).spanned())
                     .or_not(),
             )
             .map(
@@ -98,18 +103,24 @@ fn expression_parser<'tokens>()
                     then_branch,
                     else_branch,
                 },
-            );
-
-        let atom = choice((parentheses, let_, if_then_else, simple))
+            )
             .map(Box::new)
             .spanned()
             .boxed();
 
+        let function = just(Token::Kw(Kw::Fn))
+            .ignore_then(ident_parser().spanned().repeated().foldr_with(
+                just(Token::Ctrl(Ctrl::Equals)).ignore_then(expression.map(Box::new).spanned()),
+                |param, body, e| Box::new(Expression::Function { param, body }).with_span(e.span()),
+            ))
+            .boxed();
+
+        let atom = choice((parentheses, let_, if_then_else, function, simple)).boxed();
+
         let prefix_op = choice((
             just(Token::Ctrl(Ctrl::Plus)).to(PrefixOp::Pos),
             just(Token::Ctrl(Ctrl::Minus)).to(PrefixOp::Neg),
-            just(Token::Ctrl(Ctrl::Bang)).to(PrefixOp::LogicalNot),
-            just(Token::Ctrl(Ctrl::Tilde)).to(PrefixOp::BitwiseNot),
+            just(Token::Ctrl(Ctrl::Bang)).to(PrefixOp::Not),
         ))
         .spanned()
         .boxed();
